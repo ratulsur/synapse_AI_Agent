@@ -87,7 +87,25 @@ The embedding provider is fixed to Google; only the LLM provider is switchable v
 
 ## Usage
 
-Run modules from the project root so the package imports resolve:
+### Command-line agent
+
+Run the agent from the project root via `main.py`:
+
+```bash
+# Single query
+venv/bin/python main.py --prompt "Summarize recent advances in RAG"
+
+# Interactive REPL (type 'exit' or 'quit' to leave)
+venv/bin/python main.py
+
+# Override the provider for one run
+venv/bin/python main.py --provider groq --prompt "Compare vector databases"
+
+# Print the resolved configuration and exit (no API key required)
+venv/bin/python main.py --show-config
+```
+
+### Standalone module checks
 
 ```bash
 # Load and print the parsed configuration
