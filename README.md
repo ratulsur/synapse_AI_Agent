@@ -136,4 +136,4 @@ synapse_AI_Agent/
 
 ## License
 
-No license has been specified for this project yet.
+Released under the [MIT License](LICENSE).
