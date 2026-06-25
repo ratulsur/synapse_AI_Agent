@@ -2,9 +2,9 @@ import os
 import yaml
 import json
 from pathlib import Path
-from research_and_analyst.log import GLOBAL_LOGGER as log
+from log import GLOBAL_LOGGER as log
 
-from research_and_analyst.exception.custom_exception import ResearchAnalystException
+from exception.custom_exception import ResearchAnalystException
 
 BASE_DIR = Path(__file__).resolve().parents[1]  
 CONFIG_PATH = BASE_DIR / "config" / "configuration.yaml"
