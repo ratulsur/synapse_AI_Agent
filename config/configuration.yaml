@@ -25,3 +25,4 @@ llm:
      provider: "openai"
      model_name: "gpt-4o"
      temperature: 0
+     max_output_tokens: 2048
