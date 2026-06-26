@@ -50,6 +50,13 @@ persistence:
   db_path: ":memory:"
   # source_db_path: "data/synapse_sources.db"  # optional override for the Source table
 
+# --- API server settings ---
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "*"
+
 llm:
   groq:
     provider: "groq"
