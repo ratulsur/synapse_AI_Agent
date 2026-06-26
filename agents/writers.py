@@ -15,7 +15,7 @@ heading / status are set correctly and citations are filtered to ids that
 actually exist in state (a fabricated id is dropped here as a first line of
 defence; the grounding grader is the real check).
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

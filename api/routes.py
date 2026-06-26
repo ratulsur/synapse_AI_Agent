@@ -34,7 +34,7 @@ the generated ``plan`` dict.
                         then hits the HITL interrupt again.
                         Response: status="awaiting_plan_approval", updated plan.
 
-Owner: backend-developer (DTO shape co-owned with frontend-ui-developer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

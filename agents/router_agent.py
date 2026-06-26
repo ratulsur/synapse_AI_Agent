@@ -10,7 +10,7 @@ in a small ``_RouterOutput`` Pydantic model for the LLM call and unwrap to the
 ``list[RouteLabel]`` the ``query_router`` node expects. Invalid/duplicate labels
 are filtered here; the node also validates, so this is defence in depth.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

@@ -28,7 +28,7 @@ Unhandled exceptions are caught by a generic handler and returned as
 ``{"error": "Internal server error", "detail": "..."}`` with HTTP 500.
 Tracebacks are never leaked to clients; they are logged via ``GLOBAL_LOGGER``.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
