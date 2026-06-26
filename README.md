@@ -74,7 +74,7 @@ retriever:
 llm:
   groq:
     provider: "groq"
-    model_name: "deepseek-r1-distill-llama-70b"
+    model_name: "llama-3.3-70b-versatile"
   google:
     provider: "google"
     model_name: "gemini-2.0-flash"
