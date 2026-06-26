@@ -8,6 +8,28 @@ embedding_model:
 retriever:
   top_k: 4
 
+# --- Agent / graph loop controls ---
+agent:
+  max_retrieval_iterations: 3    # retrieval-evidence loop cap
+  max_revise_iterations: 2       # grounding-revise loop cap
+  default_audience: "general"
+  default_length: "medium"
+  default_tone: "neutral"
+
+# --- Canonical routing domains (source of truth shared with domains/registry.py) ---
+domains:
+  - Techno
+  - Education
+  - Travel
+  - Art
+  - Mgmt
+  - GENERIC
+
+# --- In-process checkpointer (MemorySaver) ---
+# Set persistence.db_path for SQLite when persistence/ is wired.
+persistence:
+  db_path: ":memory:"
+
 llm:
   groq:
     provider: "groq"
