@@ -8,7 +8,7 @@ can continue end-to-end.
 Also initialises loop-cap fields (``max_retrieval_iterations``,
 ``max_revise_iterations``) from config if they are not already present in state.
 
-Owner: backend-developer (persona prompt: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

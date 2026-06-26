@@ -9,7 +9,7 @@ agent stub is not yet implemented.
 Emits ``route_labels`` (list[str] domain names) and ``active_domains`` (the
 same list used downstream by tools.registry and the retrieval subgraph).
 
-Owner: backend-developer (routing prompt/rubric: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

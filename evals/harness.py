@@ -35,7 +35,7 @@ Usage:
     RUN_LIVE_EVALS=1 venv/bin/python -m evals.harness
     RUN_LIVE_EVALS=1 venv/bin/python -m evals.harness --provider openai
 
-Owner: test-eval-agent
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

@@ -24,7 +24,7 @@ iteration_counts        -- Returns the retrieval and revise iteration counts
 Threshold constants (MUST_PASS dict) define the gating values for the eval
 harness.  Justification for each threshold lives inline.
 
-Owner: test-eval-agent
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

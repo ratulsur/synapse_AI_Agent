@@ -8,7 +8,7 @@
 Canonical domain labels (must match ``schemas/routing.py``):
     Techno, Education, Travel, Art, Mgmt, GENERIC
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

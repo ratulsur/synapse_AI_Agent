@@ -11,7 +11,7 @@ Delegates to ``agents.graders.grounding_grader``; falls back to a passing
 verdict when the stub is not yet implemented so the graph can reach
 ``assemble_report`` end-to-end.
 
-Owner: backend-developer (grader rubric: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

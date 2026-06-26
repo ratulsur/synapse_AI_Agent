@@ -7,8 +7,7 @@ revise cycle (Human-in-the-loop -> scope_plan -> human_in_the_loop).
 Delegates to ``agents.planner``; falls back to a three-section default plan if
 the planner stub is not yet implemented.
 
-Owner: backend-developer (planning prompt: agent-prompt-engineer)
-"""
+Owner: Ratul Sur
 
 from __future__ import annotations
 

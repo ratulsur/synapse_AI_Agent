@@ -8,7 +8,7 @@ sections.  Increments the global ``revise_iteration`` counter and per-section
 Delegates to ``agents.reviser``; falls back to marking the section 'grounded'
 with a stub annotation when the agent is not yet implemented.
 
-Owner: backend-developer (reviser prompt: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

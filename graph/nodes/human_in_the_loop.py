@@ -16,7 +16,7 @@ Resume contract (consumed by ``api/`` and ``frontend/``):
     On revise   -> writes edited plan back into state, ``plan_approved = False``
                 -> router sends back to scope_plan.
 
-Owner: backend-developer (interrupt UX: frontend-ui-developer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
