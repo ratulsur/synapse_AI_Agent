@@ -4,7 +4,7 @@ These Pydantic models are the source of truth that backend, agents, persistence,
 and api layers all import.  Changing a field here is a breaking change -- keep
 them stable and versioned.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from schemas.analyst import AnalystPersona

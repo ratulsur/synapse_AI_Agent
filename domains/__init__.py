@@ -4,5 +4,5 @@ Canonical domains: Techno, Education, Travel, Art, Mgmt, GENERIC (fallback).
 Maps each domain to its preferred tools and retrieval parameters; consumed by the
 Query Router and the tool registry.
 
-Owner: backend-developer (label semantics co-owned with agent-prompt-engineer)
+Owner: Ratul Sur
 """

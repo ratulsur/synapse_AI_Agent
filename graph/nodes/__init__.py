@@ -6,7 +6,7 @@ are thin: they delegate reasoning to ``agents/`` and side-effecting work to
 ``tools/`` and ``persistence/``.  Keep orchestration glue here, not business
 logic.
 
-Owner: backend-developer (agent prompts injected by agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from graph.nodes.assemble_report import assemble_report
