@@ -1,16 +1,40 @@
 # Synapse AI Agent
 
-A research and analyst agent built on [LangChain](https://www.langchain.com/), with pluggable LLM providers and a configuration-driven model layer.
+A research and analyst agent built on [LangGraph](https://langchain-ai.github.io/langgraph/) and
+[LangChain](https://www.langchain.com/), with pluggable LLM providers and a configuration-driven
+model layer. Given a research question, it scopes a report plan, pauses for human approval, retrieves
+evidence from real sources, drafts the report section by section, grades each section against its
+sources, and assembles a grounded, citation-backed report.
 
-> **Project status:** Early-stage skeleton. The model/config/logging/exception foundations are in place and runnable; the agent orchestration and retrieval pipeline are not yet implemented.
+## Pipeline
 
-## Features
+```
+create_analyst → scope_plan → human_in_the_loop ──approve──▶ query_router
+                      ▲              │                              │
+                      └──revise──────┘                             ▼
+                                                          retrieval_evidence  (tool loop +
+                                                                  │            source-grader retry)
+                                                                  ▼
+   final_answer ◀── assemble_report ◀──grounded── grounding_grader ◀── section_drafting ◀── write
+                                                          │              (parallel writers)
+                                                          └──ungrounded──▶ revise_section ─┘
+```
 
-- **Config-driven model loading** — models, providers, and parameters are defined in a single YAML file and loaded through one entry point.
-- **Pluggable LLM providers** — switch between OpenAI, Google Gemini, and Groq at runtime via an environment variable, with no code changes.
-- **Centralized API key management** — keys are loaded from the environment and their presence is logged without ever exposing the values.
-- **Structured logging** — JSON-formatted logs via `structlog`, written simultaneously to the console and a timestamped file.
-- **Consistent error handling** — a custom exception type wraps underlying errors and reports the deepest call site for faster debugging.
+- **Human-in-the-loop plan approval** — the graph interrupts after planning so you can approve, edit,
+  or reject the report plan before any retrieval happens.
+- **Tool-augmented retrieval with a self-correcting loop** — a ReAct agent retrieves from web, Wikipedia /
+  Wikivoyage, and arXiv (plus optional external-API and MCP tools), bounded by a source-grader that can
+  reformulate, widen, or reroute the search when evidence is weak.
+- **Per-section grounding** — every drafted section is graded against the sources it cites; only failing
+  sections are revised, so already-grounded prose is never regressed.
+- **Pluggable LLM providers** — switch between OpenAI, Google Gemini, and Groq at runtime via one env var.
+- **Durable runs** — SQLite-backed LangGraph checkpointing lets runs survive restarts and resume from the
+  approval interrupt.
+- **Two front doors** — a FastAPI backend (run / resume / status / SSE stream) and a dependency-free static
+  web UI, plus a standalone single-LLM CLI chat agent.
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the authoritative graph topology, state schema, and feedback-loop
+contracts.
 
 ## Requirements
 
@@ -21,15 +45,12 @@ A research and analyst agent built on [LangChain](https://www.langchain.com/), w
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/ratulsur/synapse_AI_Agent.git
 cd synapse_AI_Agent
 
-# Create the virtual environment (Python 3.13)
+# Create the virtual environment (Python 3.13) and install (with test extras)
 uv venv venv --python 3.13
-
-# Install dependencies (editable install)
-uv pip install --python venv/bin/python -e .
+uv pip install --python venv/bin/python -e '.[test]'
 ```
 
 ## Configuration
@@ -61,90 +82,68 @@ LLM_PROVIDER=openai
 
 ### Configuration file
 
-Model and retrieval settings live in [`config/configuration.yaml`](config/configuration.yaml):
-
-```yaml
-embedding_model:
-  provider: "google"
-  model_name: "models/text-embedding-004"
-
-retriever:
-  top_k: 4
-
-llm:
-  groq:
-    provider: "groq"
-    model_name: "llama-3.3-70b-versatile"
-  google:
-    provider: "google"
-    model_name: "gemini-2.0-flash"
-  openai:
-    provider: "openai"
-    model_name: "gpt-4o"
-```
-
-The embedding provider is fixed to Google; only the LLM provider is switchable via `LLM_PROVIDER`.
+All settings live in [`config/configuration.yaml`](config/configuration.yaml): the three LLM provider blocks,
+the fixed Google embedding model, graph loop caps (`agent.max_retrieval_iterations`,
+`agent.max_revise_iterations`), the routable `domains`, per-tool tunables (`tools.*`), persistence
+(`persistence.db_path` — `":memory:"` by default; set a file path to enable durable SQLite checkpointing),
+and the API server `host`/`port`/`cors_origins`. The embedding provider is fixed to Google; only the LLM
+provider is switchable via `LLM_PROVIDER`.
 
 ## Usage
 
-### Command-line agent
-
-Run the agent from the project root via `main.py`:
+### Web app (backend + UI)
 
 ```bash
-# Single query
+# 1. Start the API server (builds the graph once; serves on 0.0.0.0:8000)
+venv/bin/python -m api.app           # http://localhost:8000  — /docs for OpenAPI, /healthz for liveness
+
+# 2. Serve the static frontend (points at localhost:8000)
+cd frontend && python3 -m http.server 5500   # open http://localhost:5500/index.html
+```
+
+The UI submits a query, displays the generated plan for approval/edit/reject, streams progress, and renders
+the final report with per-section citations and a sources panel.
+
+### API directly
+
+```bash
+# Start a run — returns a thread_id and pauses at the plan-approval interrupt
+curl -s -X POST http://localhost:8000/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"What are recent advances in retrieval-augmented generation?"}'
+
+# Approve the plan to run the pipeline to completion
+curl -s -X POST http://localhost:8000/runs/<thread_id>/resume \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"approve"}'
+```
+
+Endpoints: `POST /runs`, `POST /runs/{thread_id}/resume` (`approve` / `edit` / `reject`),
+`GET /runs/{thread_id}`, `GET /runs/{thread_id}/stream` (SSE), `GET /healthz`.
+
+### Command-line chat agent
+
+`main.py` is a standalone single-LLM chat assistant (not the report pipeline):
+
+```bash
 venv/bin/python main.py --prompt "Summarize recent advances in RAG"
-
-# Interactive REPL (type 'exit' or 'quit' to leave)
-venv/bin/python main.py
-
-# Override the provider for one run
-venv/bin/python main.py --provider groq --prompt "Compare vector databases"
-
-# Print the resolved configuration and exit (no API key required)
-venv/bin/python main.py --show-config
+venv/bin/python main.py                       # interactive REPL
+venv/bin/python main.py --provider groq       # override LLM_PROVIDER for this run
+venv/bin/python main.py --show-config         # print the resolved configuration and exit
 ```
 
-### Standalone module checks
+## Development
 
 ```bash
-# Load and print the parsed configuration
-venv/bin/python -m utils.config_loader
+# Tests (offline; any network call times out by design)
+venv/bin/python -m pytest                      # full suite
+venv/bin/python -m pytest tests/unit/test_routers.py::test_name   # a single test
 
-# Exercise embedding + LLM loading (requires API keys)
-venv/bin/python -m utils.model_loader
+# Graded eval harness — LIVE, opt-in (real LLM + search calls; default provider groq)
+RUN_LIVE_EVALS=1 venv/bin/python -m evals.harness --provider groq
 ```
 
-Loading models programmatically:
-
-```python
-from utils.model_loader import ModelLoader
-
-loader = ModelLoader()
-embeddings = loader.load_embeddings()   # GoogleGenerativeAIEmbeddings
-llm = loader.load_llm()                 # provider chosen by LLM_PROVIDER
-
-response = llm.invoke("Summarize the latest research on retrieval-augmented generation.")
-print(response.content)
-```
-
-## Project structure
-
-```
-synapse_AI_Agent/
-├── config/
-│   └── configuration.yaml      # Model, embedding, and retriever settings
-├── exception/
-│   └── custom_exception.py     # ResearchAnalystException wrapper
-├── log/
-│   ├── __init__.py             # Shared GLOBAL_LOGGER instance
-│   └── logger.py               # structlog + stdlib logging configuration
-├── utils/
-│   ├── config_loader.py        # Single source of truth for loading the YAML
-│   └── model_loader.py         # ApiKeyManager + ModelLoader (LLMs & embeddings)
-├── main.py                     # Placeholder entry point
-└── pyproject.toml
-```
+Run everything from the **repo root** as modules (`python -m pkg.mod`); imports are absolute from the root.
 
 ## Adding a new LLM provider
 
