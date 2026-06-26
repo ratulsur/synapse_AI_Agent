@@ -17,7 +17,7 @@ enforces ``max_revise_iterations``. The grader only reports which sections fail.
 We also clamp ``failing_section_ids`` to ids that actually exist so the router
 can never spin on a hallucinated section id.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

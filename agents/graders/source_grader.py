@@ -16,7 +16,7 @@ Termination note: this grader never reads/writes the iteration counter -- the
 subgraph increments ``retrieval_iteration`` and the ``route_after_source_grader``
 edge enforces the cap. The grader only judges quality and proposes the mutation.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
