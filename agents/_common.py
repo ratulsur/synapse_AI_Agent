@@ -15,7 +15,7 @@ concerns so each agent stays focused on its prompt + output schema:
 It contains NO prompt text (that lives in ``prompts/templates.py``) and NO graph
 wiring. It is imported by the agent modules only.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

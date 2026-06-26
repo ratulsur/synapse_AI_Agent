@@ -8,7 +8,7 @@ The persona is produced with ``.with_structured_output(AnalystPersona)`` so the
 return value is already the typed schema object the ``create_analyst`` node
 expects.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
