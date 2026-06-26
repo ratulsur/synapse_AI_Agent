@@ -14,7 +14,7 @@ The revised Section is returned with ``revise_count`` incremented and
 the next pass. Loop termination is guaranteed by the node's ``revise_iteration``
 counter against ``max_revise_iterations``; this agent does not gate the loop.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

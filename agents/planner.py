@@ -10,7 +10,7 @@ The plan is produced with ``.with_structured_output(ReportPlan)``. We then
 normalise the section set to the three canonical ids the drafting subgraph wires
 (intro / body / conclusion) so downstream writers always find their spec.
 
-Owner: agent-prompt-engineer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

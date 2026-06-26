@@ -21,7 +21,7 @@ It never crashes on an empty tool layer.
 The ``mutation_action`` from the source grader's previous verdict is honoured by
 swapping in a different retrieval directive (reformulate / widen / reroute).
 
-Owner: agent-prompt-engineer (tool bindings: backend-developer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
