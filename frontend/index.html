@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Synapse AI Agent — research report pipeline with human-in-the-loop plan review">
+  <title>Synapse AI Agent</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+  <!-- =====================================================================
+       Page shell
+  ====================================================================== -->
+  <div class="page-shell">
+
+    <header class="site-header" role="banner">
+      <div class="header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">&#9672;</span>
+          <span class="brand-name">Synapse</span>
+          <span class="brand-sub">AI Research Agent</span>
+        </div>
+        <div class="header-status" aria-live="polite">
+          <span
+            id="health-dot"
+            class="health-dot dot-pending"
+            title="Checking backend…"
+            aria-hidden="true"
+          ></span>
+          <span id="health-status" class="health-label">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================================================================
+         Main content — the JS state machine swaps views in here
+    ==================================================================== -->
+    <main id="app" class="main-content" aria-live="polite" aria-label="Application">
+      <!-- Rendered by js/app.js -->
+      <noscript>
+        <div class="card" style="max-width:560px;margin:4rem auto;padding:2rem;">
+          <h2>JavaScript required</h2>
+          <p>
+            This application requires JavaScript to communicate with the
+            Synapse AI Agent backend. Please enable JavaScript in your
+            browser and reload the page.
+          </p>
+        </div>
+      </noscript>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+      <p>
+        Synapse AI Agent &mdash; no data leaves this page except to the
+        configured backend at
+        <code id="api-base-display"></code>.
+        <a
+          href="http://localhost:8000/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="footer-link"
+        >API docs</a>
+      </p>
+    </footer>
+
+  </div><!-- /.page-shell -->
+
+  <!-- =====================================================================
+       Entry point (type="module" → ES modules, no bundler needed)
+  ====================================================================== -->
+  <script type="module" src="./js/app.js"></script>
+
+  <!-- Show the configured API base in the footer -->
+  <script type="module">
+    import { API_BASE } from './js/api.js';
+    const el = document.getElementById('api-base-display');
+    if (el) el.textContent = API_BASE;
+  </script>
+
+</body>
+</html>
