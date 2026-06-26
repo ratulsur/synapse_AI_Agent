@@ -13,7 +13,7 @@ truly-new from incoming (in their original order).
 
 Pure function; no I/O, no LLM.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ Tests covered:
 5. test_source_grader_loop_terminates_at_cap_sets_low_confidence
    - source grader always fails; max_retrieval_iterations=1; low_confidence=True in output.
 
-Owner: test-eval-agent
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

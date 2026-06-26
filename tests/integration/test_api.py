@@ -25,7 +25,7 @@ Tests covered
 8.  ``GET /runs/{thread_id}/stream``      -- 200, SSE text/event-stream, "done" event present
 9.  Full flow: start -> approve -> completed assertions (report, final_answer, sections)
 
-Owner: test-eval-agent
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

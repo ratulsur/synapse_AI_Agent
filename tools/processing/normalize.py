@@ -18,7 +18,7 @@ common internal format emitted by every tool in tools/:
 Any missing key gets a safe default.  A hit with neither url nor title is
 dropped.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

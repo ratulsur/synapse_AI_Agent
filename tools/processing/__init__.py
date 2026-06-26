@@ -3,5 +3,5 @@
 Sit between raw tool output and the typed Source store:
   normalize -> dedup -> (persist).
 
-Owner: backend-developer
+Owner: Ratul Sur
 """

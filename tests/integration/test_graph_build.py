@@ -7,7 +7,7 @@ Covers:
 
 These tests are offline and do NOT invoke any LLM (they only compile the graph).
 
-Owner: test-eval-agent
+Owner: Ratul Sur
 """
 
 import pytest
