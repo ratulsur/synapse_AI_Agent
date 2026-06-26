@@ -1,6 +1,6 @@
 """Analyst persona schema -- produced by the Create Analyst node.
 
-Owner: backend-developer (persona prompt: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from pydantic import BaseModel, Field

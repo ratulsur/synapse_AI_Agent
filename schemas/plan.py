@@ -4,7 +4,7 @@ Produced by the Scope & Plan agent, approved / edited by the Human-in-the-loop
 node, and consumed by the Write node (to scaffold sections) and the section
 writer agents.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from pydantic import BaseModel, Field

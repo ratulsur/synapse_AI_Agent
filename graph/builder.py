@@ -23,7 +23,7 @@ Edge map (matches ARCHITECTURE.md and research_agent_v2.jpg):
     grounding_grader --ungrounded--> revise_section -> grounding_grader
     grounding_grader --grounded--> assemble_report -> final_answer -> END
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

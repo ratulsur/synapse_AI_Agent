@@ -5,7 +5,7 @@ Both the Source Grader (retrieval-evidence subgraph) and the Grounding Grader
 populates ``mutation_action``; only the Grounding Grader populates
 ``failing_section_ids``.
 
-Owner: backend-developer (rubric semantics: agent-prompt-engineer)
+Owner: Ratul Sur
 """
 
 from enum import Enum

@@ -15,7 +15,7 @@ Public API:
     save_sources(thread_id: str, sources: list[Source]) -> None
     load_sources(thread_id: str) -> list[Source]
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

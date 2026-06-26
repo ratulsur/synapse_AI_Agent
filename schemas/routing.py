@@ -4,7 +4,7 @@ DOMAINS is the authoritative list shared between schemas, domains/registry.py,
 and graph/routers.py.  GENERIC is the fallback used when no specific label fires
 or on a reroute mutation.
 
-Owner: backend-developer (label definitions co-owned with domains/registry.py)
+Owner: Ratul Sur
 """
 
 from pydantic import BaseModel, Field

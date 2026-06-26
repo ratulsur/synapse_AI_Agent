@@ -18,7 +18,7 @@ route_after_grounding_grader  Per-section: failing_section_ids & under cap ->
                               revise_section; all grounded or at cap ->
                               assemble_report.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ DB path is read from ``config/configuration.yaml`` via
     persistence:
       db_path: "data/synapse_graph.db"   # set to a real path to enable SQLite
 
-Owner: backend-developer (path / ops config: cloud-developer)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

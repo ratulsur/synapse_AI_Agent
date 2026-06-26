@@ -4,7 +4,7 @@ Per the architecture, grounding is graded and revised at section granularity
 (not whole-draft), so each Section records exactly which sources it was written
 from / cited (``cited_source_ids``).
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

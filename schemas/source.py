@@ -4,7 +4,7 @@ Produced by tools.processing.normalize, deduped by tools.processing.dedup,
 persisted by persistence.source_store, graded by the source grader, and cited
 by the section writers.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

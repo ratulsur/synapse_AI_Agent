@@ -17,7 +17,7 @@ add_messages          -- LangGraph built-in; deduplicates by message id.
 operator.add          -- Simple list concatenation for the errors list
                          (errors are append-only across the graph).
 
-Owner: backend-developer (schema contracts co-owned with schemas/)
+Owner: Ratul Sur
 """
 
 from __future__ import annotations

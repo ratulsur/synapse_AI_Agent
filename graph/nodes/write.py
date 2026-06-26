@@ -7,7 +7,7 @@ populate.
 
 This is a purely deterministic node -- no LLM call.
 
-Owner: backend-developer
+Owner: Ratul Sur
 """
 
 from __future__ import annotations
