@@ -26,5 +26,18 @@ dependencies = [
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Adds the repo root to sys.path so absolute imports (from schemas.source import Source) resolve.
+pythonpath = ["."]
+# Keeps tests fast; any test hitting the network will timeout and be investigated.
+timeout = 30
+
 [tool.setuptools]
 packages = ["utils", "log", "exception", "schemas", "graph", "agents", "tools", "domains", "persistence", "prompts"]

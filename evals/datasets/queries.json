@@ -1,0 +1,62 @@
+[
+  {
+    "id": "techno-01",
+    "query": "What are the latest advances in large language models and transformer architectures?",
+    "expected_domains": ["Techno"],
+    "expected_route_label": "Techno",
+    "must_mention": ["transformer", "language model", "attention"],
+    "reference_notes": "Should cover scaling laws, RLHF, reasoning benchmarks. Groundedness: claims about specific model sizes or benchmark scores must trace to arxiv or reputable tech sources.",
+    "min_sources": 3,
+    "grounding_threshold": 0.75
+  },
+  {
+    "id": "education-01",
+    "query": "How has online education changed learning outcomes since the COVID-19 pandemic?",
+    "expected_domains": ["Education"],
+    "expected_route_label": "Education",
+    "must_mention": ["online learning", "students", "pandemic"],
+    "reference_notes": "Should include empirical studies or survey data on student performance. Groundedness: statistics and percentages must be cited to specific studies.",
+    "min_sources": 3,
+    "grounding_threshold": 0.75
+  },
+  {
+    "id": "travel-01",
+    "query": "What are the top cultural and natural attractions to visit in Kyoto, Japan?",
+    "expected_domains": ["Travel"],
+    "expected_route_label": "Travel",
+    "must_mention": ["Kyoto", "temple", "Japan"],
+    "reference_notes": "Should mention specific temples, gardens, or cultural sites. Wikivoyage is the primary expected source. Groundedness: specific attraction claims must trace to travel sources.",
+    "min_sources": 2,
+    "grounding_threshold": 0.80
+  },
+  {
+    "id": "art-01",
+    "query": "What is the history and influence of the Impressionist movement in French painting?",
+    "expected_domains": ["Art"],
+    "expected_route_label": "Art",
+    "must_mention": ["impressionism", "Monet", "France"],
+    "reference_notes": "Should reference key artists (Monet, Renoir, Degas) and major exhibitions. Groundedness: dates and artist attributions must trace to encyclopedic sources.",
+    "min_sources": 2,
+    "grounding_threshold": 0.75
+  },
+  {
+    "id": "mgmt-01",
+    "query": "What are the most effective evidence-based practices for managing distributed remote teams?",
+    "expected_domains": ["Mgmt"],
+    "expected_route_label": "Mgmt",
+    "must_mention": ["remote", "team", "management"],
+    "reference_notes": "Should include concrete practices (async communication, rituals, tooling). Groundedness: 'research shows' type claims need source links.",
+    "min_sources": 3,
+    "grounding_threshold": 0.70
+  },
+  {
+    "id": "multi-01",
+    "query": "How is artificial intelligence being used to improve early cancer detection in healthcare?",
+    "expected_domains": ["Techno", "GENERIC"],
+    "expected_route_label": "Techno",
+    "must_mention": ["AI", "cancer", "detection"],
+    "reference_notes": "Multi-domain query (Techno + medical context). Should reference published clinical studies or FDA approvals. Groundedness: specifc accuracy rates or study populations must be sourced.",
+    "min_sources": 3,
+    "grounding_threshold": 0.70
+  }
+]

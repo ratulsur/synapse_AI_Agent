@@ -1,10 +1,5 @@
-"""Placeholder unit test so the suite is collectable before real tests land.
+"""Placeholder replaced -- see test_schemas.py, test_reducers.py, test_routers.py,
+test_normalize.py, test_dedup.py, test_registry.py, test_persistence.py.
 
 Owner: test-eval-agent
 """
-
-
-def test_placeholder() -> None:
-    # TODO(test-eval-agent): replace with real unit tests
-    # (Source dedup, router branch logic, normalize extraction, etc.).
-    assert True
