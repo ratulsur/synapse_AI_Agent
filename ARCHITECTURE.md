@@ -5,10 +5,11 @@ source-grader retry loop) → parallel section synthesis (with a grounding-grade
 revise loop) → assembled report. This document is the scaffolding map and the
 contract reference. Source of truth diagram: `research_agent_v2.jpg`.
 
-> Status: scaffolding only. Every module below is a stub with a docstring and a
-> `TODO(<owner>)` marker. No application logic is implemented yet; the existing
-> `config/`, `exception/`, `log/`, `utils/`, `main.py`, `pyproject.toml` are
-> untouched.
+> Status: implemented and runnable end-to-end. The graph compiles, the FastAPI
+> backend serves the full run/resume/stream flow, and the pipeline produces
+> grounded reports from real tool retrieval. This document remains the
+> scaffolding map and contract reference; the diagram in `research_agent_v2.jpg`
+> is the source of truth for topology.
 
 ## Folder map
 

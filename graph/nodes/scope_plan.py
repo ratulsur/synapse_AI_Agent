@@ -8,6 +8,7 @@ Delegates to ``agents.planner``; falls back to a three-section default plan if
 the planner stub is not yet implemented.
 
 Owner: Ratul Sur
+"""
 
 from __future__ import annotations
 

@@ -20,16 +20,22 @@ from exception.custom_exception import ResearchAnalystException
 from graph.state import GraphState
 from log import GLOBAL_LOGGER as log
 from schemas.grading import GraderVerdict
+from schemas.section import Section
 
 
 def grounding_grader(state: GraphState) -> dict:
     """Grade all drafted sections for grounding.
 
-    Returns a partial state update with key:
+    Returns a partial state update with keys:
         grounding_grade  -- GraderVerdict
+        sections         -- list[Section] with grounded/status flags applied to
+                            the sections the grader cleared (merged into the full
+                            list via merge_sections_reducer).  Sections whose
+                            spec_id is in ``failing_section_ids`` are left
+                            ungrounded for ``revise_section`` to handle.
     """
     try:
-        sections = state.get("sections") or []
+        sections: list[Section] = state.get("sections") or []
         sources = state.get("sources") or []
         log.info(
             "grounding_grader: evaluating sections",
@@ -60,7 +66,25 @@ def grounding_grader(state: GraphState) -> dict:
             failing_section_ids=verdict.failing_section_ids,
         )
 
-        return {"grounding_grade": verdict}
+        # Mark every section the grader cleared (not in failing_section_ids) as
+        # grounded.  Without this, sections that pass on the first try keep the
+        # default ``grounded=False`` / ``status="drafted"`` forever, since only
+        # revise_section sets these flags.  Failing sections are emitted with
+        # status="revising" and left ungrounded for revise_section to rewrite.
+        failing_ids = set(verdict.failing_section_ids or [])
+        updated_sections: list[Section] = []
+        for section in sections:
+            is_grounded = section.spec_id not in failing_ids
+            updated_sections.append(
+                section.model_copy(
+                    update={
+                        "grounded": is_grounded,
+                        "status": "grounded" if is_grounded else "revising",
+                    }
+                )
+            )
+
+        return {"grounding_grade": verdict, "sections": updated_sections}
 
     except Exception as exc:
         msg = "grounding_grader node failed"
