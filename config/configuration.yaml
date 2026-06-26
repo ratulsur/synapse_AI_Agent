@@ -12,6 +12,7 @@ retriever:
 agent:
   max_retrieval_iterations: 3    # retrieval-evidence loop cap
   max_revise_iterations: 2       # grounding-revise loop cap
+  max_react_steps: 4             # ReAct reason-act-observe step cap (react_agent)
   default_audience: "general"
   default_length: "medium"
   default_tone: "neutral"
