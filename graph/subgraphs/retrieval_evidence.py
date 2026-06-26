@@ -13,14 +13,21 @@ Each node delegates to its respective owned layer:
     save_checkpoint  -> persistence.source_store (typed Source[] -> SQLite)
     source_grader    -> agents.graders.source_grader (LLM judge -> GraderVerdict)
 
-Stub behaviour: when any owned layer raises NotImplementedError / ImportError,
-the node falls back to a safe no-op so the subgraph topology stays intact and
-compilable.
+ToolMessage -> normalize wiring
+--------------------------------
+After tool_calls runs, the ReAct agent appends ``ToolMessage`` objects to
+``state['messages']``.  Each ToolMessage carries the JSON string output of a
+single tool invocation.  ``_normalize`` parses every ToolMessage in the
+current messages list whose content parses as a JSON array, normalises the
+hit dicts into ``Source`` objects, and pre-deduplicates against already-
+accumulated ``state['sources']`` before returning them to the reducer.
 
 Owner: backend-developer (agent + grader prompts: agent-prompt-engineer)
 """
 
 from __future__ import annotations
+
+import json
 
 from langgraph.graph import END, START, StateGraph
 
@@ -69,19 +76,76 @@ def _tool_calls(state: GraphState) -> dict:
 
 
 def _normalize(state: GraphState) -> dict:
-    """Convert raw tool-hit messages into typed ``Source`` objects."""
+    """Convert raw ToolMessage content into typed ``Source`` objects.
+
+    Parses every ``ToolMessage`` in ``state['messages']`` whose content is a
+    JSON array of hit dicts, normalises each hit via
+    ``tools.processing.normalize``, pre-deduplicates the result against
+    already-accumulated ``state['sources']``, and returns only the truly-new
+    sources for the LangGraph reducer to accumulate.
+    """
     try:
         log.debug("retrieval/normalize: normalising raw hits")
 
         try:
+            from langchain_core.messages import ToolMessage
             from tools.processing.normalize import normalize  # type: ignore[import]
+            from tools.processing.dedup import dedup  # type: ignore[import]
+
             active_domains: list[str] = state.get("active_domains") or ["GENERIC"]
             domain: str = active_domains[0] if active_domains else "GENERIC"
-            raw_hits: list[dict] = []  # agents.react_agent populates messages; stub passes []
-            sources: list[Source] = normalize(raw_hits, domain=domain, tool="react")
-            return {"sources": sources}
-        except (ImportError, NotImplementedError, AttributeError):
-            log.debug("retrieval/normalize: normalize stub not ready, returning empty list")
+
+            # --- Parse ToolMessage JSON payloads into raw hit dicts ---
+            messages = state.get("messages") or []
+            raw_hits: list[dict] = []
+            for msg in messages:
+                if not isinstance(msg, ToolMessage):
+                    continue
+                content = msg.content or ""
+                if not content:
+                    continue
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, list):
+                        raw_hits.extend(
+                            h for h in parsed if isinstance(h, dict)
+                        )
+                    else:
+                        log.debug(
+                            "retrieval/normalize: ToolMessage content is not a list, skipping",
+                            tool_call_id=getattr(msg, "tool_call_id", "?"),
+                        )
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    # Not JSON (e.g. error strings from stubbed tools), skip.
+                    log.debug(
+                        "retrieval/normalize: non-JSON ToolMessage content, skipping",
+                        preview=content[:60],
+                    )
+
+            log.info(
+                "retrieval/normalize: parsed raw_hits from ToolMessages",
+                raw_hit_count=len(raw_hits),
+                message_count=len(messages),
+            )
+
+            # --- Normalize raw hits -> Source objects ---
+            new_sources: list[Source] = normalize(raw_hits, domain=domain, tool="react")
+
+            # --- Pre-dedup against already-accumulated sources ---
+            existing: list[Source] = state.get("sources") or []
+            merged = dedup(existing, new_sources)
+            existing_ids = {s.id for s in existing}
+            truly_new = [s for s in merged if s.id not in existing_ids]
+
+            log.info(
+                "retrieval/normalize: returning new sources",
+                new_count=len(truly_new),
+                existing_count=len(existing),
+            )
+            return {"sources": truly_new} if truly_new else {}
+
+        except (ImportError, NotImplementedError, AttributeError) as exc:
+            log.debug("retrieval/normalize: dependency not ready, returning empty list", error=str(exc))
             return {}
 
     except Exception as exc:
@@ -91,21 +155,46 @@ def _normalize(state: GraphState) -> dict:
 
 
 def _deduplication(state: GraphState) -> dict:
-    """Deduplicate incoming sources against already-accumulated sources."""
+    """URL-level sanity check on all accumulated sources.
+
+    The primary id-based deduplication is already performed by both the
+    ``add_sources_reducer`` and the pre-dedup step in ``_normalize``.  This
+    node performs a secondary URL-level scan across all accumulated sources,
+    logs any remaining duplicates for observability, and returns no state
+    change (sources are already clean at this point).
+    """
     try:
-        log.debug("retrieval/deduplication: deduplicating sources")
+        log.debug("retrieval/deduplication: url-level sanity check")
 
         try:
             from tools.processing.dedup import dedup  # type: ignore[import]
-            existing: list[Source] = state.get("sources") or []
-            incoming: list[Source] = []  # normalize populates via state; stub passes []
-            merged: list[Source] = dedup(existing, incoming)
-            # Return only the truly new sources; add_sources_reducer handles accumulation.
-            existing_ids = {s.id for s in existing}
-            new_only = [s for s in merged if s.id not in existing_ids]
-            return {"sources": new_only} if new_only else {}
+
+            all_sources: list[Source] = state.get("sources") or []
+            if not all_sources:
+                return {}
+
+            # Run dedup over all accumulated sources to find URL-level dupes.
+            merged = dedup([], all_sources)
+            dropped = len(all_sources) - len(merged)
+            if dropped:
+                log.warning(
+                    "retrieval/deduplication: url-level duplicates detected",
+                    total=len(all_sources),
+                    unique=len(merged),
+                    dropped=dropped,
+                )
+            else:
+                log.debug(
+                    "retrieval/deduplication: no url-level duplicates found",
+                    total=len(all_sources),
+                )
+
+            # We cannot remove from the accumulated state via the reducer;
+            # the pre-dedup in _normalize prevents new dupes from entering.
+            return {}
+
         except (ImportError, NotImplementedError, AttributeError):
-            log.debug("retrieval/deduplication: dedup stub not ready, no-op")
+            log.debug("retrieval/deduplication: dedup not ready, no-op")
             return {}
 
     except Exception as exc:
@@ -122,6 +211,7 @@ def _save_checkpoint(state: GraphState) -> dict:
         try:
             from persistence.source_store import save_sources  # type: ignore[import]
             # thread_id would come from the LangGraph config; use a placeholder here.
+            # TODO: accept config: RunnableConfig as second arg to get the real thread_id.
             thread_id: str = "default"
             sources: list[Source] = state.get("sources") or []
             save_sources(thread_id, sources)

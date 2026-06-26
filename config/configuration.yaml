@@ -26,10 +26,29 @@ domains:
   - Mgmt
   - GENERIC
 
-# --- In-process checkpointer (MemorySaver) ---
-# Set persistence.db_path for SQLite when persistence/ is wired.
+# --- Tool tunables (read by each tool via load_config()) ---
+tools:
+  web_search:
+    top_k: 5          # max DuckDuckGo results per query
+    timeout: 10       # HTTP timeout in seconds
+  wiki:
+    top_k: 3          # max Wikipedia / Wikivoyage pages per query
+    timeout: 10
+  arxiv:
+    top_k: 5          # max arXiv papers per query
+    timeout: 15
+  external_api:
+    enabled: false    # set true + provide credentials to activate
+  mcp:
+    enabled: false    # set true + configure servers to activate
+    servers: []       # list of {name, url, transport} dicts
+
+# --- Persistence (checkpointer + source store) ---
+# Set db_path to a real file path (e.g. "data/synapse.db") to enable SQLite
+# checkpointing and durable source storage.  ":memory:" uses in-process stores.
 persistence:
   db_path: ":memory:"
+  # source_db_path: "data/synapse_sources.db"  # optional override for the Source table
 
 llm:
   groq:
