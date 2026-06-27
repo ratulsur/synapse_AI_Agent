@@ -1,0 +1,17 @@
+# railway.toml — Railway v2 deployment configuration for synapse-ai-agent
+# Docs: https://docs.railway.com/reference/config-as-code
+#
+# Railway builds from the Dockerfile in the repo root.
+# Secrets must be set in the Railway dashboard (Variables tab) — never here.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway injects $PORT at runtime; api/app.py reads os.environ["PORT"] first.
+# The Dockerfile CMD ("python -m api.app") is used as-is — no override needed.
+healthcheckPath = "/healthz"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

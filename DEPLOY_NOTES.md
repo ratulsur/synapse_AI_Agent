@@ -163,6 +163,85 @@ so dependency downloads are skipped on subsequent runs when the dependency set i
 
 ---
 
+---
+
+## Railway deployment
+
+### One-time setup (Railway dashboard)
+
+1. Go to https://railway.com and create a new project.
+2. Choose "Deploy from GitHub repo" and select `ratulsur/synapse_AI_Agent`.
+3. Railway detects `railway.toml` and uses the Dockerfile builder automatically.
+4. Open the service "Variables" tab and add every variable listed in the table below.
+5. Railway starts a deploy automatically after you save the variables.
+
+### Required environment variables (Railway Variables tab)
+
+Set these in the Railway dashboard under your service -> Variables. Do not paste real keys
+into any file in the repository.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `GOOGLE_API_KEY` | Always | Embedding model is fixed to Google regardless of `LLM_PROVIDER` |
+| `OPENAI_API_KEY` | When `LLM_PROVIDER=openai` (default) | OpenAI LLM calls |
+| `GROQ_API_KEY` | When `LLM_PROVIDER=groq` | Groq LLM calls |
+| `LLM_PROVIDER` | Optional | `openai` (default) / `google` / `groq` |
+| `ASTRA_DB_API_ENDPOINT` | Optional | AstraDB vector retriever endpoint |
+| `ASTRA_DB_APPLICATION_TOKEN` | Optional | AstraDB auth token |
+| `ASTRA_DB_KEYSPACE` | Optional | AstraDB keyspace |
+| `TAVILY_API_KEY` | Optional | Tavily web-search tool |
+| `LANGCHAIN_TRACING_V2` | Optional | Set `true` to enable LangSmith tracing |
+| `LANGCHAIN_API_KEY` | Optional | Required when `LANGCHAIN_TRACING_V2=true` |
+| `PORT` | Injected automatically | Railway sets this; do NOT set it manually |
+
+`PORT` is injected by Railway at runtime and must not be set manually. The app reads
+`os.environ["PORT"]` (with fallback to `8000`) in `api/app.py`.
+
+### PORT binding
+
+Railway dynamically assigns a port via the `$PORT` environment variable. The fix in
+`api/app.py` reads `os.environ.get("PORT")` before falling back to the YAML config,
+so the app binds to whatever Railway assigns. Without this fix Railway cannot route
+external traffic to the container.
+
+### Persistence on Railway
+
+Railway services run on ephemeral filesystems. The default `persistence.db_path: ":memory:"`
+(in `config/configuration.yaml`) means the MemorySaver is used and no data is written to
+disk — this is safe on Railway with no extra setup.
+
+To enable durable SQLite checkpointing on Railway:
+
+1. Add a Railway volume: in your service settings click "Add Volume", mount path `/app/data`.
+2. Set the `persistence.db_path` config value to `data/synapse.db` by either:
+   - Editing `config/configuration.yaml` before deploying, or
+   - Adding a Railway environment variable `CONFIG_PATH` pointing to a custom YAML that
+     overrides `persistence.db_path`.
+
+The `/app/data` directory is pre-created and owned by `appuser` in the Dockerfile, so no
+extra permissions step is needed at runtime.
+
+### Verify the deploy
+
+After Railway finishes the deploy:
+
+```bash
+# Replace <your-railway-domain> with the domain shown in the Railway dashboard.
+curl https://<your-railway-domain>/healthz
+# Expected: {"status":"ok","service":"synapse-ai-agent"}
+
+curl https://<your-railway-domain>/docs
+# Opens the OpenAPI UI
+```
+
+### Triggering redeploys
+
+Railway watches the `master` branch. Every push to `master` that passes GitHub Actions CI
+triggers a new Railway deploy automatically (Railway's GitHub integration handles this).
+No manual redeploy step is needed after a CI-passing push.
+
+---
+
 ## Checklist
 
 - [ ] `.env` is **not** committed to git (`git ls-files .env` returns nothing)
@@ -177,3 +256,9 @@ so dependency downloads are skipped on subsequent runs when the dependency set i
 - [ ] Log output forwarded to an aggregator in production
 - [ ] LangSmith tracing configured if per-run token accounting is required (`LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`)
 - [ ] API keys rotated if they were ever visible in plaintext outside of a secrets manager
+- [ ] `railway.toml` committed and present at repo root
+- [ ] Railway service connected to the `ratulsur/synapse_AI_Agent` GitHub repo (master branch)
+- [ ] All required Railway Variables set in the dashboard (at minimum `GOOGLE_API_KEY` + one LLM key)
+- [ ] `PORT` is NOT manually set in Railway Variables (Railway injects it automatically)
+- [ ] Railway deploy completes and `/healthz` returns `{"status":"ok","service":"synapse-ai-agent"}`
+- [ ] If durable persistence is needed: Railway volume mounted at `/app/data` and `db_path` updated

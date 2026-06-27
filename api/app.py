@@ -33,6 +33,7 @@ Owner: Ratul Sur
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -187,7 +188,11 @@ def run() -> None:
     cfg = load_config()
     api_cfg: dict = cfg.get("api", {})
     host: str = api_cfg.get("host", "0.0.0.0")
-    port: int = int(api_cfg.get("port", 8000))
+    # Railway (and other PaaS platforms) dynamically assign a port via the PORT
+    # environment variable.  Prefer that over the YAML config value so the app
+    # binds to whatever port the platform expects.  Falls back to the YAML
+    # setting (default 8000) for local / Docker Compose usage.
+    port: int = int(os.environ.get("PORT") or api_cfg.get("port", 8000))
 
     log.info("api: starting uvicorn", host=host, port=port)
     uvicorn.run(
