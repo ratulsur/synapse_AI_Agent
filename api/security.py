@@ -82,14 +82,19 @@ def _expiry_days() -> int:
 # ---------------------------------------------------------------------------
 
 
+def _trunc72(password: str) -> str:
+    """Truncate to the first 72 UTF-8 bytes (bcrypt's hard limit) and decode back."""
+    return password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+
+
 def hash_password(password: str) -> str:
-    """Return a bcrypt hash of ``password`` (first 72 bytes only)."""
-    return pwd_context.hash(password[:72])
+    """Return a bcrypt hash of ``password`` (first 72 UTF-8 bytes only)."""
+    return pwd_context.hash(_trunc72(password))
 
 
 def verify_password(password: str, hashed: str) -> bool:
     """Verify ``password`` against a stored bcrypt hash."""
-    return pwd_context.verify(password[:72], hashed)
+    return pwd_context.verify(_trunc72(password), hashed)
 
 
 # ---------------------------------------------------------------------------

@@ -128,10 +128,13 @@ async def login(
     result = await db.execute(select(User).where(func.lower(User.email) == email))
     user = result.scalar_one_or_none()
 
-    # Constant-time rejection: always call verify_password even on missing user
-    # to prevent timing-based user enumeration.
-    _DUMMY_HASH = "$2b$12$KIX7kF0lHY0j0xVR0R6V4eGJT4M9vT7VJ7B7lZ9B7lZ9B7lZ9B7l"  # noqa: S105
-    if user is None or not verify_password(body.password, user.hashed_password if user else _DUMMY_HASH):
+    # Always call verify_password regardless of whether the user exists so the
+    # response time is constant and cannot be used to enumerate valid emails.
+    # _DUMMY_HASH is a real bcrypt hash (60 chars); passlib raises on malformed hashes.
+    _DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # noqa: S105
+    check_hash = user.hashed_password if user is not None else _DUMMY_HASH
+    password_ok = verify_password(body.password, check_hash)
+    if user is None or not password_ok:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user.last_login = datetime.now(timezone.utc)

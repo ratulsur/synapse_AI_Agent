@@ -105,6 +105,8 @@ async def complete_run(
     if run is None:
         log.warning("db: complete_run called for unknown run_id", run_id=str(run_id))
         return
+    if run.status == "completed":
+        return  # idempotent — do not overwrite completed_at / duration_ms on repeat calls
 
     now = datetime.now(timezone.utc)
     duration_ms: int | None = None

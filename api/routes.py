@@ -39,6 +39,7 @@ Owner: Ratul Sur
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import timezone
@@ -552,7 +553,7 @@ async def start_run(
 
     try:
         log.info("api: starting run", thread_id=thread_id, query=body.query[:80])
-        result = graph.invoke(initial_state, cfg)
+        result = await asyncio.to_thread(graph.invoke, initial_state, cfg)
     except ResearchAnalystException:
         raise
     except Exception as exc:
@@ -660,9 +661,11 @@ async def resume_run(
     # Build the resume value based on the action
     if body.action == "approve":
         resume_value: dict = {"approved": True}
-        # Mark the run as in-progress before the (blocking) invoke.
+        # Mark the run as in-progress, then release the DB connection before the
+        # long-running graph.invoke() (can take minutes on the approve path).
         run.status = "running"
         await db.commit()
+        await db.close()
     elif body.action == "edit":
         if body.edited_plan is None:
             raise HTTPException(
@@ -670,12 +673,15 @@ async def resume_run(
                 detail="edited_plan is required when action='edit'.",
             )
         resume_value = {"approved": False, "plan": body.edited_plan}
+        await db.close()
     else:  # reject
         resume_value = {"approved": False}
+        await db.close()
 
+    # Run in a thread pool so the event loop stays responsive during the graph run.
     try:
         log.info("api: resuming run", thread_id=thread_id, action=body.action)
-        result = graph.invoke(Command(resume=resume_value), cfg)
+        result = await asyncio.to_thread(graph.invoke, Command(resume=resume_value), cfg)
     except ResearchAnalystException:
         raise
     except Exception as exc:
@@ -701,9 +707,10 @@ async def resume_run(
             interrupt_payload=interrupt_payload,
         )
 
-    # Completed — persist report and finalise run record.
+    # Completed — open a fresh session (injected `db` was closed before the invoke).
     log.info("api: run completed", thread_id=thread_id)
-    await _finalize(db, thread_id, user.id, result)
+    async with SessionLocal() as post_db:
+        await _finalize(post_db, thread_id, user.id, result)
     return ResumeResponse(
         thread_id=thread_id,
         status="completed",
