@@ -19,12 +19,12 @@ from __future__ import annotations
 
 DOMAIN_POLICY: dict[str, dict] = {
     "Techno": {
-        "tools": ["arxiv", "web", "mcp"],
+        "tools": ["arxiv", "tech_blogs", "web", "mcp"],
         "top_k": 5,
         "description": "Technology, AI/ML, software engineering, hard sciences.",
     },
     "Education": {
-        "tools": ["wiki", "web"],
+        "tools": ["wiki", "tech_blogs", "web"],
         "top_k": 4,
         "description": "Pedagogy, curricula, academic concepts, learning resources.",
     },
@@ -49,7 +49,7 @@ DOMAIN_POLICY: dict[str, dict] = {
         "description": "Stock/market analysis, OHLCV price action, tickers, technical indicators.",
     },
     "GENERIC": {
-        "tools": ["web", "wiki"],
+        "tools": ["web", "wiki", "tech_blogs"],
         "top_k": 5,
         "description": "Fallback domain; broad web + Wikipedia coverage.",
     },

@@ -41,6 +41,7 @@ def _load_tools() -> dict[str, BaseTool]:
     _import_tool(tool_map, "tools.wiki", "wikivoyage_search", alias="wikivoyage")
     _import_tool(tool_map, "tools.arxiv", "arxiv_search", alias="arxiv")
     _import_tool(tool_map, "tools.finance", "finance_ohlcv", alias="finance")
+    _import_tool(tool_map, "tools.tech_blogs", "tech_blog_search", alias="tech_blogs")
     _import_tool(tool_map, "tools.external_api", "external_api_search", alias="external_api")
     _import_tool(tool_map, "tools.mcp", "mcp_search", alias="mcp")
     return tool_map
@@ -76,13 +77,13 @@ def _import_tool(
 #: activates.  Tools listed first are preferred (the agent is not forced to
 #: call all of them; this is the available set).
 DOMAIN_TOOL_MAP: dict[str, list[str]] = {
-    "Techno":    ["arxiv", "web", "wiki"],
-    "Education": ["wiki", "web"],
+    "Techno":    ["arxiv", "tech_blogs", "web", "wiki"],
+    "Education": ["wiki", "tech_blogs", "web"],
     "Travel":    ["wikivoyage", "web"],
     "Art":       ["wiki", "web"],
     "Mgmt":      ["web", "external_api"],
     "Finance":   ["finance", "web"],
-    "GENERIC":   ["web", "wiki", "arxiv"],
+    "GENERIC":   ["web", "wiki", "arxiv", "tech_blogs"],
 }
 
 # Populated lazily on first access.

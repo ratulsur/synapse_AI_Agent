@@ -44,6 +44,11 @@ tools:
     default_interval: "1d"
     max_tickers: 3
     timeout: 15
+  tech_blogs:
+    top_k: 5          # max results per query (DuckDuckGo site-scoped)
+    timeout: 10       # DuckDuckGo request timeout in seconds
+    fetch_timeout: 5  # per-URL article fetch timeout (short; falls back to snippet)
+    fetch_content: true  # attempt to fetch full article text; false = snippet only
   external_api:
     enabled: false    # set true + provide credentials to activate
   mcp:
