@@ -94,6 +94,13 @@ async def get_quote(
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"No market data found for {ticker!r}")
 
+    # Drop partial/stub bars (current trading day before market close has NaN OHLCV)
+    import math as _math
+    df = df[df["Close"].notna() & df["Close"].apply(lambda x: not _math.isnan(float(x)) and float(x) > 0)]
+
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No complete bars available for {ticker!r}")
+
     is_intraday = interval in _INTRADAY
     bars: list[OHLCVBar] = []
     for ts, row in df.iterrows():
