@@ -24,6 +24,7 @@ domains:
   - Travel
   - Art
   - Mgmt
+  - Finance
   - GENERIC
 
 # --- Tool tunables (read by each tool via load_config()) ---
@@ -36,6 +37,12 @@ tools:
     timeout: 10
   arxiv:
     top_k: 5          # max arXiv papers per query
+    timeout: 15
+  finance:
+    enabled: true
+    default_period: "1mo"
+    default_interval: "1d"
+    max_tickers: 3
     timeout: 15
   external_api:
     enabled: false    # set true + provide credentials to activate

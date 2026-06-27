@@ -18,6 +18,7 @@ dependencies = [
     "arxiv>=2.1.0",
     "wikipedia>=1.4.0",
     "ddgs>=9.0.0",
+    "yfinance>=0.2.0",
     # SQLite-backed LangGraph checkpointing
     "langgraph-checkpoint-sqlite>=2.0.0",
     # API layer

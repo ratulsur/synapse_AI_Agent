@@ -26,14 +26,14 @@ from __future__ import annotations
 PROMPT_VERSIONS: dict[str, str] = {
     "analyst": "v1",
     "planner": "v1",
-    "router": "v1",
+    "router": "v2",
     "react": "v1",
     "write_intro": "v1",
     "write_body": "v1",
     "write_conclusion": "v1",
     "reviser": "v1",
     "source_grader": "v1",
-    "grounding_grader": "v1",
+    "grounding_grader": "v2",
 }
 
 
@@ -100,6 +100,8 @@ ROUTER_SYSTEM = (
     "- Travel: places, destinations, trip planning, geography, tourism.\n"
     "- Art: visual art, music, literature, film, design, culture, history of art.\n"
     "- Mgmt: business, management, strategy, economics, organisations, markets.\n"
+    "- Finance: stock/equity/market analysis, tickers, price action, OHLCV/candlestick "
+    "data, technical indicators, 'analyze <SYMBOL>', performance over a time window.\n"
     "- GENERIC: catch-all fallback when no specific domain clearly fits, or to "
     "broaden coverage for a cross-cutting question.\n\n"
     "Rules:\n"
@@ -126,6 +128,9 @@ REACT_SYSTEM = (
     "- Prefer authoritative, on-topic, recent sources; avoid near-duplicates.\n"
     "- Stop calling tools once you have sufficient, diverse coverage of the "
     "question, or when further calls add nothing.\n"
+    "- For finance queries, identify the ticker symbol(s) and the time window from "
+    "the question; call the finance tool with ticker + period + interval (e.g. map "
+    "'last 30 days' -> period='1mo', interval='1d'; 'last 3 months' -> period='3mo').\n"
     "- If no tools are available, briefly state the search plan and the queries "
     "you would run, then stop.\n"
     "Do not fabricate sources or tool results."

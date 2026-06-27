@@ -40,6 +40,7 @@ def _load_tools() -> dict[str, BaseTool]:
     _import_tool(tool_map, "tools.wiki", "wikipedia_search", alias="wiki")
     _import_tool(tool_map, "tools.wiki", "wikivoyage_search", alias="wikivoyage")
     _import_tool(tool_map, "tools.arxiv", "arxiv_search", alias="arxiv")
+    _import_tool(tool_map, "tools.finance", "finance_ohlcv", alias="finance")
     _import_tool(tool_map, "tools.external_api", "external_api_search", alias="external_api")
     _import_tool(tool_map, "tools.mcp", "mcp_search", alias="mcp")
     return tool_map
@@ -80,6 +81,7 @@ DOMAIN_TOOL_MAP: dict[str, list[str]] = {
     "Travel":    ["wikivoyage", "web"],
     "Art":       ["wiki", "web"],
     "Mgmt":      ["web", "external_api"],
+    "Finance":   ["finance", "web"],
     "GENERIC":   ["web", "wiki", "arxiv"],
 }
 

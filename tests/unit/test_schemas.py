@@ -202,7 +202,7 @@ class TestRoutingSchemas:
             assert lbl.is_valid() is True
 
     def test_route_label_invalid_for_unknown_domain(self):
-        lbl = RouteLabel(domain="Finance")
+        lbl = RouteLabel(domain="Crypto")
         assert lbl.is_valid() is False
 
     def test_route_label_confidence_default(self):

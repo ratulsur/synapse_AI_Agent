@@ -6,7 +6,7 @@
 ``domains`` list.
 
 Canonical domain labels (must match ``schemas/routing.py``):
-    Techno, Education, Travel, Art, Mgmt, GENERIC
+    Techno, Education, Travel, Art, Mgmt, Finance, GENERIC
 
 Owner: Ratul Sur
 """
@@ -42,6 +42,11 @@ DOMAIN_POLICY: dict[str, dict] = {
         "tools": ["web", "external_api"],
         "top_k": 5,
         "description": "Business strategy, management theory, finance, economics.",
+    },
+    "Finance": {
+        "tools": ["finance", "web"],
+        "top_k": 5,
+        "description": "Stock/market analysis, OHLCV price action, tickers, technical indicators.",
     },
     "GENERIC": {
         "tools": ["web", "wiki"],

@@ -1,7 +1,7 @@
 # Grounding Grader Rubric
 
 Owner: agent-prompt-engineer
-Version: v1
+Version: v2
 
 The LLM judge checks each drafted section's claims against the sources THAT
 section cited, and emits a `GraderVerdict` with `failing_section_ids`. Grounding
@@ -28,6 +28,11 @@ that is common knowledge, and explicit hedges ("this report will examine ...").
    no drift, no rounding that changes meaning, no quotes the source never made.
 4. No unsupported extrapolation: conclusions stated as fact must follow from the
    cited evidence, not from outside knowledge the sources do not contain.
+5. Quantitative provenance (finance/market claims): any price, percentage,
+   high/low, moving-average, or volume figure must trace to a cited Finance
+   source AND that source must identify the ticker and the date/period it
+   covers. A numeric market claim with no ticker+date-range provenance, or
+   whose figure does not match the cited OHLCV summary, fails the section.
 
 A section that has NO citations but makes factual claims is NOT grounded.
 A section whose only claims are framing/common-knowledge may pass even with few
@@ -52,3 +57,6 @@ citations.
   `failing_section_ids=['conclusion']` (fabricated citation).
 - Intro is pure framing with no factual claims, no citations -> grounded (not a
   failure).
+- Body states "AAPL rose 8.6% over the month" citing a Finance source whose
+  summary shows pct_change=+8.6% over period=1mo -> grounded (fidelity pass).
+  Body states "+12%" for the same source -> fails (fidelity, figure mismatch).

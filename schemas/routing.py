@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 # Any changes here must be reflected in domains/registry.py and
 # config/configuration.yaml (agent.domains).
 # ---------------------------------------------------------------------------
-DOMAINS: list[str] = ["Techno", "Education", "Travel", "Art", "Mgmt", "GENERIC"]
+DOMAINS: list[str] = ["Techno", "Education", "Travel", "Art", "Mgmt", "Finance", "GENERIC"]
 
 GENERIC_DOMAIN: str = "GENERIC"
 
