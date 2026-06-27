@@ -64,6 +64,9 @@ api:
   cors_origins:
     - "*"
 
+auth:
+  jwt_expiry_days: 7
+
 llm:
   groq:
     provider: "groq"

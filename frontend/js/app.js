@@ -3,20 +3,34 @@
  *
  * State machine
  * -------------
+ *   login                     (auth gate — shown when no valid token)
+ *     -> dashboard            (on successful login / valid session)
+ *   dashboard                 (run history + analytics)
+ *     -> idle                 (user clicks "New Research")
+ *     -> report_history       (user clicks "View Report" on a run row)
+ *   report_history            (stored report for a past run)
+ *     -> dashboard            ("Back to Dashboard")
  *   idle
- *     -> submitting          (user submits query)
+ *     -> submitting           (user submits query)
  *   submitting
  *     -> awaiting_plan_approval  (POST /runs returns awaiting_plan_approval)
  *     -> completed               (POST /runs returns completed — unusual path)
  *     -> error
  *   awaiting_plan_approval
- *     -> resuming            (user clicks Approve / Edit / Reject)
+ *     -> resuming             (user clicks Approve / Edit / Reject)
  *   resuming
  *     -> awaiting_plan_approval  (POST /resume returns awaiting_plan_approval — re-interrupt)
  *     -> completed               (POST /resume returns completed)
  *     -> error
  *   completed                    (terminal display state)
+ *     -> dashboard            ("Back to Dashboard")
+ *     -> idle                 ("Start New Research")
  *   error                        (terminal display state; "Start Over" resets to idle)
+ *
+ * Global events
+ * -------------
+ *   synapse:logout        → transition to login
+ *   synapse:unauthorized  → transition to login (401 from any API call)
  *
  * The SSE stream (GET /runs/{id}/stream) is opened in parallel with the
  * POST /resume call and feeds incremental checkpoint events to the progress
@@ -25,21 +39,32 @@
  * for the final state.
  */
 
-import { createStore }                          from './state.js';
-import { healthCheck, startRun, resumeRun, streamRun } from './api.js';
-import { mountQueryView }                       from './queryView.js';
-import { mountPlanView }                        from './planView.js';
-import { mountProgressView, updateProgressView } from './progressView.js';
-import { mountReportView }                      from './reportView.js';
-import { esc, formatError }                     from './utils.js';
+import { createStore }                               from './state.js';
+import { healthCheck, startRun, resumeRun, streamRun, getMe } from './api.js';
+import { getToken, clearToken, logout }              from './auth.js';
+import { mountQueryView }                            from './queryView.js';
+import { mountPlanView }                             from './planView.js';
+import { mountProgressView, updateProgressView }     from './progressView.js';
+import { mountReportView }                           from './reportView.js';
+import { renderLoginView }                           from './loginView.js';
+import { renderDashboardView }                       from './dashboardView.js';
+import { renderReportHistoryView }                   from './reportHistoryView.js';
+import { esc, formatError }                          from './utils.js';
 
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
 const store = createStore({
-  /** @type {'idle'|'submitting'|'awaiting_plan_approval'|'resuming'|'completed'|'error'} */
+  /**
+   * @type {'login'|'dashboard'|'report_history'|
+   *        'idle'|'submitting'|'awaiting_plan_approval'|'resuming'|'completed'|'error'}
+   */
   screen: 'idle',
+  /** @type {{ id?: string, email?: string, display_name?: string }|null} */
+  currentUser: null,
+  /** @type {string|null} Run ID for the report_history screen. */
+  dashboardRunId: null,
   /** @type {string|null} */
   threadId: null,
   /** @type {string|null} */
@@ -68,9 +93,9 @@ const store = createStore({
 // DOM references
 // ---------------------------------------------------------------------------
 
-const appEl      = document.getElementById('app');
-const healthEl   = document.getElementById('health-status');
-const healthDot  = document.getElementById('health-dot');
+const appEl     = document.getElementById('app');
+const healthEl  = document.getElementById('health-status');
+const healthDot = document.getElementById('health-dot');
 
 // ---------------------------------------------------------------------------
 // View lifecycle — cleanup function from the current view
@@ -87,14 +112,95 @@ function cleanupView() {
 }
 
 // ---------------------------------------------------------------------------
+// Navigation bar — updated on every render to reflect auth state
+// ---------------------------------------------------------------------------
+
+function updateNav(state) {
+  const navEl = document.getElementById('nav-user');
+  if (!navEl) return;
+
+  if (state.currentUser) {
+    const displayName = esc(
+      state.currentUser.display_name || state.currentUser.email || 'User'
+    );
+    const emailLabel = esc(state.currentUser.email || '');
+    navEl.innerHTML = `
+      <span
+        class="nav-user-name"
+        id="nav-user-name"
+        aria-label="Logged in as ${emailLabel}"
+      >${displayName}</span>
+      <button
+        class="btn btn-sm btn-secondary"
+        id="nav-dashboard-btn"
+        type="button"
+        aria-label="Go to dashboard"
+      >Dashboard</button>
+      <button
+        class="btn btn-sm btn-danger"
+        id="nav-logout-btn"
+        type="button"
+      >Logout</button>
+    `;
+    navEl.querySelector('#nav-dashboard-btn').addEventListener('click', () => {
+      store.setState({ screen: 'dashboard' });
+    });
+    navEl.querySelector('#nav-logout-btn').addEventListener('click', () => {
+      logout();
+    });
+  } else {
+    navEl.innerHTML = '';
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Render dispatcher — called on every state change
 // ---------------------------------------------------------------------------
 
 function render(state) {
+  updateNav(state);
   cleanupView();
   appEl.innerHTML = '';
 
   switch (state.screen) {
+
+    // ------------------------- Auth screens --------------------------------
+
+    case 'login':
+      renderLoginView(appEl, async () => {
+        // loginView has stored the token; fetch user info then go to dashboard
+        try {
+          const user = await getMe();
+          store.setState({ screen: 'dashboard', currentUser: user });
+        } catch {
+          // Token was stored but getMe failed — proceed to dashboard anyway
+          store.setState({ screen: 'dashboard', currentUser: null });
+        }
+      });
+      break;
+
+    case 'dashboard': {
+      const result = renderDashboardView(appEl, {
+        onNewResearch: resetToIdle,
+        onViewReport: (runId) => {
+          store.setState({ screen: 'report_history', dashboardRunId: runId });
+        },
+      });
+      currentView = result || null;
+      break;
+    }
+
+    case 'report_history': {
+      const result = renderReportHistoryView(appEl, {
+        runId:  state.dashboardRunId,
+        onBack: () => store.setState({ screen: 'dashboard' }),
+      });
+      currentView = result || null;
+      break;
+    }
+
+    // ----------------------- Research pipeline screens ---------------------
+
     case 'idle':
       mountQueryView(appEl, { onSubmit: submitQuery });
       break;
@@ -105,11 +211,11 @@ function render(state) {
 
     case 'awaiting_plan_approval':
       mountPlanView(appEl, {
-        plan: state.plan || {},
+        plan:             state.plan || {},
         interruptPayload: state.interruptPayload || {},
-        onApprove: () => sendResume('approve', null),
-        onEdit:    (edited_plan) => sendResume('edit', edited_plan),
-        onReject:  () => sendResume('reject', null),
+        onApprove: ()              => sendResume('approve', null),
+        onEdit:    (edited_plan)   => sendResume('edit', edited_plan),
+        onReject:  ()              => sendResume('reject', null),
       });
       break;
 
@@ -127,6 +233,10 @@ function render(state) {
         sources:       state.sources,
         lowConfidence: state.lowConfidence,
         plan:          state.plan,
+        onBack:        state.currentUser
+                         ? () => store.setState({ screen: 'dashboard' })
+                         : null,
+        onNewResearch: resetToIdle,
       });
       break;
 
@@ -312,6 +422,18 @@ function resetToIdle() {
 }
 
 // ---------------------------------------------------------------------------
+// Global auth event listeners
+// ---------------------------------------------------------------------------
+
+window.addEventListener('synapse:logout', () => {
+  store.setState({ screen: 'login', currentUser: null });
+});
+
+window.addEventListener('synapse:unauthorized', () => {
+  store.setState({ screen: 'login', currentUser: null });
+});
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 
@@ -329,5 +451,33 @@ healthCheck()
     if (healthDot) { healthDot.className = 'health-dot dot-error'; healthDot.title = 'Cannot reach backend'; }
   });
 
-// Initial render
-render(store.getState());
+// Boot sequence: validate stored token → dashboard, or show login
+boot();
+
+async function boot() {
+  const token = getToken();
+
+  if (!token) {
+    store.setState({ screen: 'login', currentUser: null });
+    return;
+  }
+
+  // Show a loading screen while we validate the token
+  appEl.innerHTML = `
+    <div class="view view-loading">
+      <div class="card center-card">
+        <div class="spinner" role="status" aria-label="Verifying session"></div>
+        <p class="spinner-label">Verifying session&hellip;</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const user = await getMe();
+    store.setState({ screen: 'dashboard', currentUser: user });
+  } catch {
+    // Token was invalid or expired — clear it and show login
+    clearToken();
+    store.setState({ screen: 'login', currentUser: null });
+  }
+}

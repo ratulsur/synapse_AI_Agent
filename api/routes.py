@@ -41,13 +41,19 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import timezone
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.security import get_current_user, get_current_user_from_query
+from db import crud
+from db.models import User
+from db.session import SessionLocal, get_session
 from exception.custom_exception import ResearchAnalystException
 from log import GLOBAL_LOGGER as log
 
@@ -415,6 +421,96 @@ def _safe_json(value: Any) -> Any:
         return str(value)
 
 
+def _derive_title(result: dict) -> str:
+    """Derive a report title from the graph result dict.
+
+    Priority:
+    1. First section heading from the plan.
+    2. First non-empty line of the assembled report.
+    3. The original query string.
+    """
+    plan = result.get("plan")
+    if plan is not None:
+        try:
+            sections = plan.sections
+            if sections:
+                heading = sections[0].heading
+                if heading:
+                    return heading[:500]
+        except (AttributeError, IndexError):
+            pass
+
+    report: str = result.get("report") or ""
+    if report:
+        for line in report.split("\n"):
+            line = line.strip().lstrip("#").strip()
+            if line:
+                return line[:500]
+
+    return str(result.get("query", "Research Report"))[:500]
+
+
+async def _finalize(
+    db: AsyncSession,
+    thread_id: str,
+    user_id: Any,
+    result: dict,
+) -> None:
+    """Persist the completed run and its report to the database.
+
+    This function is idempotent: ``upsert_report`` is an upsert and
+    ``complete_run`` is a no-op if the run is already marked completed.
+    Errors are caught and logged so a DB failure never crashes the response.
+    """
+    try:
+        sections: list = result.get("sections") or []
+        sources: list = result.get("sources") or []
+        report_text: str = result.get("report") or result.get("final_answer") or ""
+
+        grounded = bool(sections) and all(
+            getattr(s, "grounded", False) for s in sections
+        )
+        title = _derive_title(result)
+
+        await crud.upsert_report(
+            db,
+            run_id=thread_id,
+            title=title,
+            content=report_text,
+            section_count=len(sections),
+            source_count=len(sources),
+            grounded=grounded,
+        )
+
+        active_domains: list = result.get("active_domains") or []
+        low_confidence: bool = bool(result.get("low_confidence", False))
+
+        await crud.complete_run(
+            db,
+            run_id=thread_id,
+            active_domains=active_domains,
+            low_confidence=low_confidence,
+        )
+    except Exception as exc:
+        log.error(
+            "api: _finalize failed — run result not persisted",
+            thread_id=thread_id,
+            error=str(exc),
+        )
+
+
+def _map_event_type(source_node: Optional[str]) -> str:
+    """Map a graph node name to an event_type string for the events table."""
+    if source_node is None:
+        return "node_completed"
+    node_lower = source_node.lower()
+    if "grader" in node_lower:
+        return "grader_result"
+    if "retrieval" in node_lower or "tool_call" in node_lower:
+        return "retrieval_iteration"
+    return "node_completed"
+
+
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
@@ -429,7 +525,12 @@ async def healthz() -> HealthResponse:
 
 
 @router.post("/runs", response_model=RunResponse, tags=["runs"])
-async def start_run(body: RunRequest, request: Request) -> RunResponse:
+async def start_run(
+    body: RunRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> RunResponse:
     """Start a new research run.
 
     Invokes the graph from the initial state until the ``human_in_the_loop``
@@ -465,6 +566,23 @@ async def start_run(body: RunRequest, request: Request) -> RunResponse:
     status = _infer_status_from_invoke_result(result)
 
     if status == "awaiting_plan_approval":
+        # Persist the run record so future ownership checks succeed.
+        try:
+            await crud.create_run(
+                db,
+                run_id=thread_id,
+                user_id=user.id,
+                query=body.query,
+                status="awaiting_plan_approval",
+                active_domains=None,
+            )
+        except Exception as exc:
+            log.error(
+                "api: failed to persist run record",
+                thread_id=thread_id,
+                error=str(exc),
+            )
+
         interrupts = result.get("__interrupt__", [])
         interrupt_payload: dict = interrupts[0].value if interrupts else {}
         plan = interrupt_payload.get("plan")
@@ -476,8 +594,24 @@ async def start_run(body: RunRequest, request: Request) -> RunResponse:
             interrupt_payload=interrupt_payload,
         )
 
-    # Graph ran to completion without a HITL interrupt (unusual but handled)
+    # Graph ran to completion without a HITL interrupt (unusual but handled).
     log.info("api: run completed without HITL interrupt", thread_id=thread_id)
+    try:
+        await crud.create_run(
+            db,
+            run_id=thread_id,
+            user_id=user.id,
+            query=body.query,
+            status="awaiting_plan_approval",
+            active_domains=None,
+        )
+    except Exception as exc:
+        log.error(
+            "api: failed to persist run record (no-HITL path)",
+            thread_id=thread_id,
+            error=str(exc),
+        )
+    await _finalize(db, thread_id, user.id, result)
     return RunResponse(
         thread_id=thread_id,
         status="completed",
@@ -494,6 +628,8 @@ async def resume_run(
     thread_id: str,
     body: ResumeRequest,
     request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
 ) -> ResumeResponse:
     """Resume a paused run with a human decision.
 
@@ -513,9 +649,20 @@ async def resume_run(
     graph = _get_graph(request)
     cfg = _make_thread_config(thread_id)
 
+    # Verify ownership before invoking the graph.
+    run = await crud.get_run_for_user(db, run_id=thread_id, user_id=user.id)
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Run {thread_id!r} not found or access denied.",
+        )
+
     # Build the resume value based on the action
     if body.action == "approve":
         resume_value: dict = {"approved": True}
+        # Mark the run as in-progress before the (blocking) invoke.
+        run.status = "running"
+        await db.commit()
     elif body.action == "edit":
         if body.edited_plan is None:
             raise HTTPException(
@@ -554,8 +701,9 @@ async def resume_run(
             interrupt_payload=interrupt_payload,
         )
 
-    # Completed
+    # Completed — persist report and finalise run record.
     log.info("api: run completed", thread_id=thread_id)
+    await _finalize(db, thread_id, user.id, result)
     return ResumeResponse(
         thread_id=thread_id,
         status="completed",
@@ -573,7 +721,12 @@ async def resume_run(
     response_model=StatusResponse,
     tags=["runs"],
 )
-async def get_run_status(thread_id: str, request: Request) -> StatusResponse:
+async def get_run_status(
+    thread_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> StatusResponse:
     """Fetch the current status and result of a run from the checkpointer.
 
     Uses ``graph.get_state(config)`` to read the latest checkpoint for the
@@ -583,6 +736,14 @@ async def get_run_status(thread_id: str, request: Request) -> StatusResponse:
     """
     graph = _get_graph(request)
     cfg = _make_thread_config(thread_id)
+
+    # Verify ownership via DB.
+    run = await crud.get_run_for_user(db, run_id=thread_id, user_id=user.id)
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Run {thread_id!r} not found or access denied.",
+        )
 
     try:
         snapshot = graph.get_state(cfg)
@@ -602,6 +763,10 @@ async def get_run_status(thread_id: str, request: Request) -> StatusResponse:
 
     values = snapshot.values
     status = _infer_status_from_snapshot(snapshot)
+
+    # Idempotently finalise if the run has completed.
+    if status == "completed":
+        await _finalize(db, thread_id, user.id, values)
 
     next_nodes: list[str] = []
     try:
@@ -623,8 +788,16 @@ async def get_run_status(thread_id: str, request: Request) -> StatusResponse:
 
 
 @router.get("/runs/{thread_id}/stream", tags=["runs"])
-async def stream_run(thread_id: str, request: Request) -> StreamingResponse:
+async def stream_run(
+    thread_id: str,
+    request: Request,
+    user: User = Depends(get_current_user_from_query),
+    db: AsyncSession = Depends(get_session),
+) -> StreamingResponse:
     """Stream checkpoint-history events as server-sent events (SSE).
+
+    Auth is via ``?token=<jwt>`` query parameter because EventSource cannot
+    send custom headers.
 
     Emits one ``checkpoint`` event per saved graph checkpoint for the given
     ``thread_id`` (most-recent first), then a final ``done`` event.
@@ -635,72 +808,124 @@ async def stream_run(thread_id: str, request: Request) -> StreamingResponse:
     Clients should parse ``data:`` lines, skip blank lines, and parse the JSON.
     The ``done`` event signals the end of the stream.
 
+    Events are persisted to the ``events`` table on the first stream call for
+    a given run (idempotency: if events already exist, DB writes are skipped).
+
     Errors are surfaced as an ``error`` event so the client can react without
     losing the connection silently.
     """
     graph = _get_graph(request)
     cfg = _make_thread_config(thread_id)
 
-    def _event_generator():
-        try:
-            history_count = 0
-            for snapshot in graph.get_state_history(cfg):
-                values: dict = snapshot.values or {}
-                snap_status = _infer_status_from_snapshot(snapshot)
+    # Verify ownership before starting the generator.
+    run = await crud.get_run_for_user(db, run_id=thread_id, user_id=user.id)
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Run {thread_id!r} not found or access denied.",
+        )
 
-                # Extract the node(s) that wrote this checkpoint from metadata
-                source_node: Optional[str] = None
-                try:
-                    meta = snapshot.metadata or {}
-                    writes = meta.get("writes") or {}
-                    nodes_written = list(writes.keys()) if writes else []
-                    source_node = nodes_written[0] if nodes_written else meta.get("source")
-                except Exception:
-                    pass
+    async def _event_generator():
+        # Each SSE stream call opens its own DB session so it is not bound to
+        # the request's session (which may be closed by the time the generator
+        # yields events to a long-lived client).
+        async with SessionLocal() as wsession:
+            should_persist = not await crud.events_exist(wsession, thread_id)
+            events_to_persist: list[dict] = []
 
-                next_nodes: list[str] = []
-                try:
-                    next_nodes = list(snapshot.next) if snapshot.next else []
-                except Exception:
-                    pass
+            try:
+                history_count = 0
+                for snapshot in graph.get_state_history(cfg):
+                    values: dict = snapshot.values or {}
+                    snap_status = _infer_status_from_snapshot(snapshot)
 
-                step = history_count
-                try:
-                    step = (snapshot.metadata or {}).get("step", history_count)
-                except Exception:
-                    pass
+                    # Extract the node(s) that wrote this checkpoint from metadata
+                    source_node: Optional[str] = None
+                    try:
+                        meta = snapshot.metadata or {}
+                        writes = meta.get("writes") or {}
+                        nodes_written = list(writes.keys()) if writes else []
+                        source_node = nodes_written[0] if nodes_written else meta.get("source")
+                    except Exception:
+                        pass
 
-                event_data = {
-                    "event": "checkpoint",
+                    next_nodes: list[str] = []
+                    try:
+                        next_nodes = list(snapshot.next) if snapshot.next else []
+                    except Exception:
+                        pass
+
+                    step = history_count
+                    try:
+                        step = (snapshot.metadata or {}).get("step", history_count)
+                    except Exception:
+                        pass
+
+                    event_data = {
+                        "event": "checkpoint",
+                        "thread_id": thread_id,
+                        "status": snap_status,
+                        "step": step,
+                        "node": source_node,
+                        "next": next_nodes,
+                        "has_report": bool(values.get("report")),
+                        "has_final_answer": bool(values.get("final_answer")),
+                        "low_confidence": values.get("low_confidence"),
+                    }
+
+                    if should_persist:
+                        events_to_persist.append(
+                            {
+                                "event_type": _map_event_type(source_node),
+                                "payload": _safe_json(event_data),
+                            }
+                        )
+
+                    yield f"data: {json.dumps(event_data)}\n\n"
+                    history_count += 1
+
+                    if history_count >= 100:  # safety cap
+                        break
+
+                if history_count == 0:
+                    # Thread not found or no checkpoints -- emit a not-found event
+                    yield f"data: {json.dumps({'event': 'not_found', 'thread_id': thread_id})}\n\n"
+
+                done_event = {
+                    "event": "done",
                     "thread_id": thread_id,
-                    "status": snap_status,
-                    "step": step,
-                    "node": source_node,
-                    "next": next_nodes,
-                    "has_report": bool(values.get("report")),
-                    "has_final_answer": bool(values.get("final_answer")),
-                    "low_confidence": values.get("low_confidence"),
+                    "total_checkpoints": history_count,
                 }
-                yield f"data: {json.dumps(event_data)}\n\n"
-                history_count += 1
+                yield f"data: {json.dumps(done_event)}\n\n"
 
-                if history_count >= 100:  # safety cap
-                    break
+                # Persist events to DB (idempotent — skipped if events already exist).
+                if should_persist and events_to_persist:
+                    for ev in events_to_persist:
+                        await crud.write_event(
+                            wsession,
+                            run_id=thread_id,
+                            event_type=ev["event_type"],
+                            payload=ev["payload"],
+                            commit=False,
+                        )
+                    # Append a terminal "run_completed" event.
+                    await crud.write_event(
+                        wsession,
+                        run_id=thread_id,
+                        event_type="run_completed",
+                        payload=_safe_json(done_event),
+                        commit=False,
+                    )
+                    await wsession.commit()
 
-            if history_count == 0:
-                # Thread not found or no checkpoints -- emit a not-found event
-                yield f"data: {json.dumps({'event': 'not_found', 'thread_id': thread_id})}\n\n"
-
-            yield f"data: {json.dumps({'event': 'done', 'thread_id': thread_id, 'total_checkpoints': history_count})}\n\n"
-
-        except Exception as exc:
-            log.error("api: stream error", thread_id=thread_id, error=str(exc))
-            error_event = {
-                "event": "error",
-                "thread_id": thread_id,
-                "error": str(exc),
-            }
-            yield f"data: {json.dumps(error_event)}\n\n"
+            except Exception as exc:
+                log.error("api: stream error", thread_id=thread_id, error=str(exc))
+                error_event = {
+                    "event": "error",
+                    "thread_id": thread_id,
+                    "error": str(exc),
+                }
+                yield f"data: {json.dumps(error_event)}\n\n"
 
     return StreamingResponse(
         _event_generator(),

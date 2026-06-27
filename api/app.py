@@ -42,7 +42,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.auth import router as auth_router
+from api.dashboard import router as dashboard_router
 from api.routes import router
+from db.session import init_db
 from exception.custom_exception import ResearchAnalystException
 from graph.builder import build_graph
 from log import GLOBAL_LOGGER as log
@@ -57,6 +60,16 @@ from utils.config_loader import load_config
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Build and attach the compiled LangGraph during application startup."""
+    # Guard: JWT_SECRET must be present before we accept any traffic.
+    if not os.environ.get("JWT_SECRET"):
+        log.error(
+            "api: JWT_SECRET environment variable is not set. "
+            "Set it to a long random string before starting the server."
+        )
+        raise RuntimeError(
+            "JWT_SECRET is required. Set it in your environment or .env file."
+        )
+
     log.info("api: lifespan startup -- building research graph")
     try:
         app.state.graph = build_graph()
@@ -64,6 +77,9 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         log.error("api: failed to build graph at startup", error=str(exc))
         raise
+
+    # Initialise the database (creates SQLite tables; logs a hint for Postgres).
+    await init_db()
 
     yield  # application runs
 
@@ -102,6 +118,7 @@ def create_app(graph=None) -> FastAPI:
         async def _injected_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             log.info("api: lifespan startup -- using injected graph")
             app.state.graph = graph
+            await init_db()
             yield
             log.info("api: lifespan shutdown")
 
@@ -169,6 +186,8 @@ def create_app(graph=None) -> FastAPI:
 
     # --- Routes ---
     app.include_router(router)
+    app.include_router(auth_router)
+    app.include_router(dashboard_router)
 
     return app
 

@@ -16,21 +16,42 @@
 
     <header class="site-header" role="banner">
       <div class="header-inner">
+
+        <!-- Brand / logo (left) -->
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">&#9672;</span>
           <span class="brand-name">Synapse</span>
           <span class="brand-sub">AI Research Agent</span>
         </div>
-        <div class="header-status" aria-live="polite">
-          <span
-            id="health-dot"
-            class="health-dot dot-pending"
-            title="Checking backend…"
-            aria-hidden="true"
-          ></span>
-          <span id="health-status" class="health-label">Connecting…</span>
-        </div>
-      </div>
+
+        <!-- Right side: user nav + health indicator -->
+        <div class="header-right">
+
+          <!--
+            User navigation — managed entirely by app.js / updateNav().
+            When authenticated: user name, Dashboard button, Logout button.
+            When unauthenticated: empty (login is the app's first screen).
+          -->
+          <nav
+            class="nav-user"
+            id="nav-user"
+            aria-label="User navigation"
+          ></nav>
+
+          <!-- Backend health indicator -->
+          <div class="header-status" aria-live="polite">
+            <span
+              id="health-dot"
+              class="health-dot dot-pending"
+              title="Checking backend…"
+              aria-hidden="true"
+            ></span>
+            <span id="health-status" class="health-label">Connecting…</span>
+          </div>
+
+        </div><!-- /.header-right -->
+
+      </div><!-- /.header-inner -->
     </header>
 
     <!-- ===================================================================
@@ -56,7 +77,7 @@
         configured backend at
         <code id="api-base-display"></code>.
         <a
-          href="http://localhost:8000/docs"
+          href="https://synapseaiagent-production.up.railway.app/docs"
           target="_blank"
           rel="noopener noreferrer"
           class="footer-link"
@@ -68,6 +89,7 @@
 
   <!-- =====================================================================
        Entry point (type="module" → ES modules, no bundler needed)
+       All view modules are imported transitively from app.js.
   ====================================================================== -->
   <script type="module" src="./js/app.js"></script>
 

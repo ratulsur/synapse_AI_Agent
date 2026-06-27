@@ -31,6 +31,8 @@ export function mountReportView(container, {
   sources,
   lowConfidence,
   plan,
+  onBack,
+  onNewResearch,
 }) {
   // Build source lookup for citation rendering
   /** @type {Record<string, SourceDTO>} */
@@ -76,6 +78,11 @@ export function mountReportView(container, {
       ${sources && sources.length > 0 ? renderSourcesPanel(sources) : ''}
 
       <div class="report-footer">
+        ${onBack ? `
+          <button class="btn btn-secondary" id="back-dashboard-btn" type="button">
+            &#8592; Back to Dashboard
+          </button>
+        ` : ''}
         <button class="btn btn-secondary" id="new-research-btn" type="button">
           Start New Research
         </button>
@@ -88,9 +95,18 @@ export function mountReportView(container, {
   // Event wiring
   // -------------------------------------------------------------------------
 
-  // "Start New Research" reloads the page (resets all state)
+  // "Back to Dashboard" — only present when onBack is provided
+  if (onBack) {
+    container.querySelector('#back-dashboard-btn')?.addEventListener('click', onBack);
+  }
+
+  // "Start New Research" — calls onNewResearch callback when provided, otherwise reloads
   container.querySelector('#new-research-btn').addEventListener('click', () => {
-    window.location.reload();
+    if (onNewResearch) {
+      onNewResearch();
+    } else {
+      window.location.reload();
+    }
   });
 
   // Citation links → smooth-scroll to the corresponding source card

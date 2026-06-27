@@ -24,6 +24,15 @@ dependencies = [
     # API layer
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
+    # Database layer
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29.0",
+    "aiosqlite>=0.20.0",
+    "alembic>=1.13.0",
+    # Auth
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "email-validator>=2.0.0",
 ]
 
 [build-system]
@@ -45,4 +54,4 @@ pythonpath = ["."]
 timeout = 30
 
 [tool.setuptools]
-packages = ["utils", "log", "exception", "schemas", "graph", "agents", "tools", "domains", "persistence", "prompts", "api"]
+packages = ["utils", "log", "exception", "schemas", "graph", "agents", "tools", "domains", "persistence", "prompts", "api", "db"]

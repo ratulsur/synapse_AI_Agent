@@ -2,11 +2,13 @@
  * API client for the Synapse AI Agent backend.
  *
  * Change API_BASE to point at your running FastAPI instance.
- * Default: http://localhost:8000
+ * Default: https://synapseaiagent-production.up.railway.app
  *
  * No secrets or API keys are present in this file.
  * All communication uses standard fetch / EventSource.
  */
+
+import { authHeader, clearToken, getToken } from './auth.js';
 
 export const API_BASE = 'https://synapseaiagent-production.up.railway.app';
 
@@ -54,26 +56,118 @@ async function _parseBody(resp) {
 }
 
 /**
- * Thin fetch wrapper: sets Content-Type, checks status, throws ApiError on failure.
- * @param {string} url
+ * Thin fetch wrapper: sets Content-Type, injects auth header when authenticated,
+ * checks status, and throws ApiError on failure.
+ *
+ * On a 401 response the stored token is cleared and a `synapse:unauthorized`
+ * event is dispatched before the error is thrown — this lets app.js redirect
+ * to the login screen without polling.
+ *
+ * @param {string}      url
  * @param {RequestInit} [options]
+ * @param {boolean}     [authenticated=true]  Pass false for login/register calls
+ *                                             that have no token yet.
  * @returns {Promise<unknown>}
  */
-async function _fetch(url, options = {}) {
+async function _fetch(url, options = {}, authenticated = true) {
   const resp = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(authenticated ? authHeader() : {}),
       ...(options.headers ?? {}),
     },
   });
   const body = await _parseBody(resp);
-  if (!resp.ok) throw new ApiError(resp.status, body);
+  if (!resp.ok) {
+    if (resp.status === 401) {
+      clearToken();
+      window.dispatchEvent(new Event('synapse:unauthorized'));
+    }
+    throw new ApiError(resp.status, body);
+  }
   return body;
 }
 
 // ---------------------------------------------------------------------------
-// Public API surface
+// Auth endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /auth/register — create a new account.
+ * @param {{ email: string, password: string, display_name?: string }} params
+ * @returns {Promise<{ access_token: string, token_type: string }>}
+ */
+export async function register({ email, password, display_name }) {
+  return _fetch(
+    `${API_BASE}/auth/register`,
+    { method: 'POST', body: JSON.stringify({ email, password, display_name }) },
+    false,
+  );
+}
+
+/**
+ * POST /auth/login — exchange credentials for a JWT.
+ * @param {{ email: string, password: string }} params
+ * @returns {Promise<{ access_token: string, token_type: string }>}
+ */
+export async function login({ email, password }) {
+  return _fetch(
+    `${API_BASE}/auth/login`,
+    { method: 'POST', body: JSON.stringify({ email, password }) },
+    false,
+  );
+}
+
+/**
+ * GET /auth/me — return the currently authenticated user.
+ * @returns {Promise<{ id: string, email: string, display_name?: string }>}
+ */
+export async function getMe() {
+  return _fetch(`${API_BASE}/auth/me`);
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /dashboard/runs — paginated run history for the current user.
+ *
+ * @param {{ page?: number, limit?: number, status?: string }} [params]
+ * @returns {Promise<{ runs: RunSummary[], total: number }>}
+ *
+ * RunSummary: { id, query, status, created_at, duration_seconds, has_report }
+ */
+export async function getDashboardRuns({ page = 1, limit = 20, status } = {}) {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) qs.set('status', status);
+  return _fetch(`${API_BASE}/dashboard/runs?${qs}`);
+}
+
+/**
+ * GET /dashboard/runs/{runId}/report — retrieve a stored report.
+ *
+ * @param {string} runId
+ * @returns {Promise<StoredReport>}
+ *
+ * StoredReport: { title, created_at, content, section_count?, source_count? }
+ */
+export async function getStoredReport(runId) {
+  return _fetch(`${API_BASE}/dashboard/runs/${encodeURIComponent(runId)}/report`);
+}
+
+/**
+ * GET /dashboard/analytics — aggregate stats for the current user.
+ *
+ * @returns {Promise<{ total_runs, completed_runs, avg_duration_seconds, avg_sources_per_run }>}
+ */
+export async function getAnalytics() {
+  return _fetch(`${API_BASE}/dashboard/analytics`);
+}
+
+// ---------------------------------------------------------------------------
+// Public API surface (research pipeline)
 // ---------------------------------------------------------------------------
 
 /**
@@ -81,7 +175,7 @@ async function _fetch(url, options = {}) {
  * @returns {Promise<{ status: string, service: string }>}
  */
 export async function healthCheck() {
-  return _fetch(`${API_BASE}/healthz`);
+  return _fetch(`${API_BASE}/healthz`, {}, false);
 }
 
 /**
@@ -151,6 +245,9 @@ export async function getRunStatus(threadId) {
 /**
  * GET /runs/{thread_id}/stream  — open an SSE stream of checkpoint-history events.
  *
+ * EventSource cannot send Authorization headers, so the JWT is appended as a
+ * query-string parameter: ?token=<encoded-jwt>.
+ *
  * Events are emitted most-recent-first by the backend (get_state_history order).
  * Closes automatically on "done" or "not_found" events.
  *
@@ -166,7 +263,8 @@ export async function getRunStatus(threadId) {
  *                    has_report, has_final_answer, low_confidence }
  */
 export function streamRun(threadId, { onEvent, onDone, onError } = {}) {
-  const url = `${API_BASE}/runs/${encodeURIComponent(threadId)}/stream`;
+  const token = getToken();
+  const url = `${API_BASE}/runs/${encodeURIComponent(threadId)}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   const es = new EventSource(url);
 
   es.onmessage = (e) => {
