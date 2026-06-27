@@ -33,8 +33,7 @@ COPY . .
 # the path calculation wrong.  Editable install leaves __file__ pointing at
 # /app/utils/config_loader.py so .parents[1] == /app, where configuration.yaml
 # lives.  The venv's .pth file keeps this reference intact in the runtime stage.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv /opt/venv && \
+RUN uv venv /opt/venv && \
     uv pip install --python /opt/venv/bin/python -e .
 
 # ============================================================================
