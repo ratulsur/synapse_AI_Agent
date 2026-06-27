@@ -114,3 +114,39 @@ jobs:
           # reducing build time when only source files changed (not deps).
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Deploy static frontend to GitHub Pages
+  # Gated on the test job. Only runs on direct pushes to master.
+  # Enable GitHub Pages first: repo Settings → Pages → Source → GitHub Actions
+  # ---------------------------------------------------------------------------
+  deploy-frontend:
+    name: Deploy Frontend (GitHub Pages)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload frontend as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./frontend
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

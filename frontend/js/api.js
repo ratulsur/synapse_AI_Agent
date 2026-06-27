@@ -8,7 +8,7 @@
  * All communication uses standard fetch / EventSource.
  */
 
-export const API_BASE = 'http://localhost:8000';
+export const API_BASE = 'https://synapseaiagent-production.up.railway.app';
 
 // ---------------------------------------------------------------------------
 // Error type
