@@ -1348,3 +1348,218 @@ details[open] .advanced-toggle::before { content: '– '; }
     display: none;   /* hide Created and Duration columns on very small screens */
   }
 }
+
+/* =========================================================================
+   FINANCE / MARKETS VIEW
+   Dark-themed candlestick chart view with live OHLCV data.
+   ========================================================================= */
+
+.view-finance {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.finance-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.finance-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* Search bar row */
+.finance-search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.fin-ticker-input {
+  flex: 1 1 180px;
+  min-width: 140px;
+  height: 2.4rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: border-color 0.15s;
+}
+.fin-ticker-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  background: #fff;
+}
+
+.fin-period-row {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.fin-period-btn {
+  min-width: 2.4rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-secondary-bd);
+  background: var(--color-secondary-bg);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.fin-period-btn:hover  { background: #e2e8f0; color: var(--color-text); }
+.fin-period-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.fin-interval-select {
+  height: 2.4rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* Error / loading banners */
+.fin-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.fin-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+/* Summary stat cards */
+.fin-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.fin-stat-card {
+  flex: 1 1 100px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.fin-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.fin-stat-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.fin-positive { color: #16a34a; }  /* green-600 */
+.fin-negative { color: #dc2626; }  /* red-600   */
+
+.fin-trend-uptrend   { color: #16a34a; }
+.fin-trend-downtrend { color: #dc2626; }
+.fin-trend-sideways  { color: var(--color-text-muted); }
+
+/* Chart container — dark background to match lightweight-charts theme */
+.fin-chart-wrap {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+}
+
+.fin-chart {
+  width: 100%;
+  height: 420px;
+}
+
+.fin-no-chart {
+  padding: var(--space-8);
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Analyze bar */
+.fin-analyze-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.fin-analyze-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.btn-lg {
+  padding: 0.65rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .fin-summary-row { gap: var(--space-2); }
+  .fin-stat-card   { flex: 1 1 80px; padding: var(--space-2) var(--space-3); }
+  .fin-stat-value  { font-size: 0.9rem; }
+  .fin-chart       { height: 280px; }
+  .fin-analyze-bar { flex-direction: column; align-items: flex-start; }
+  .fin-analyze-bar .btn-lg { width: 100%; }
+  .finance-search-bar { flex-direction: column; align-items: stretch; }
+  .fin-ticker-input   { width: 100%; }
+}

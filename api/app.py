@@ -44,6 +44,7 @@ from fastapi.responses import JSONResponse
 
 from api.auth import router as auth_router
 from api.dashboard import router as dashboard_router
+from api.finance import router as finance_router
 from api.routes import router
 from db.session import init_db
 from exception.custom_exception import ResearchAnalystException
@@ -188,6 +189,7 @@ def create_app(graph=None) -> FastAPI:
     app.include_router(router)
     app.include_router(auth_router)
     app.include_router(dashboard_router)
+    app.include_router(finance_router)
 
     return app
 

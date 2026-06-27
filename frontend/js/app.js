@@ -49,6 +49,7 @@ import { mountReportView }                           from './reportView.js';
 import { renderLoginView }                           from './loginView.js';
 import { renderDashboardView }                       from './dashboardView.js';
 import { renderReportHistoryView }                   from './reportHistoryView.js';
+import { renderFinanceView }                         from './financeView.js';
 import { esc, formatError }                          from './utils.js';
 
 // ---------------------------------------------------------------------------
@@ -132,6 +133,12 @@ function updateNav(state) {
       >${displayName}</span>
       <button
         class="btn btn-sm btn-secondary"
+        id="nav-markets-btn"
+        type="button"
+        aria-label="Go to Markets"
+      >&#9650; Markets</button>
+      <button
+        class="btn btn-sm btn-secondary"
         id="nav-dashboard-btn"
         type="button"
         aria-label="Go to dashboard"
@@ -142,6 +149,9 @@ function updateNav(state) {
         type="button"
       >Logout</button>
     `;
+    navEl.querySelector('#nav-markets-btn').addEventListener('click', () => {
+      store.setState({ screen: 'finance' });
+    });
     navEl.querySelector('#nav-dashboard-btn').addEventListener('click', () => {
       store.setState({ screen: 'dashboard' });
     });
@@ -194,6 +204,15 @@ function render(state) {
       const result = renderReportHistoryView(appEl, {
         runId:  state.dashboardRunId,
         onBack: () => store.setState({ screen: 'dashboard' }),
+      });
+      currentView = result || null;
+      break;
+    }
+
+    case 'finance': {
+      const result = renderFinanceView(appEl, {
+        onBack: () => store.setState({ screen: 'dashboard' }),
+        onGenerateReport: (query) => submitQuery({ query }),
       });
       currentView = result || null;
       break;

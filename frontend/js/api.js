@@ -167,6 +167,27 @@ export async function getAnalytics() {
 }
 
 // ---------------------------------------------------------------------------
+// Finance endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /finance/quote/{ticker} — live OHLCV candlestick data.
+ *
+ * @param {string} ticker  Ticker symbol (e.g. "AAPL", "MSFT")
+ * @param {{ period?: string, interval?: string }} [opts]
+ * @returns {Promise<QuoteResponse>}
+ *
+ * QuoteResponse: { ticker, period, interval,
+ *   bars: [{ time, open, high, low, close, volume }],
+ *   summary: { last_close, pct_change, trend, period_high, period_low,
+ *              sma20, sma50, avg_volume, n_bars } }
+ */
+export async function getFinanceQuote(ticker, { period = '1mo', interval = '1d' } = {}) {
+  const qs = new URLSearchParams({ period, interval });
+  return _fetch(`${API_BASE}/finance/quote/${encodeURIComponent(ticker)}?${qs}`);
+}
+
+// ---------------------------------------------------------------------------
 // Public API surface (research pipeline)
 // ---------------------------------------------------------------------------
 
