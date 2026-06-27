@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# .dockerignore — files excluded from the Docker build context
+# ---------------------------------------------------------------------------
+
+# Virtual environments — never copy; the image installs fresh with uv
+venv/
+.venv/
+
+# Python byte-code and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Secrets — CRITICAL: these must NEVER be baked into the image
+.env
+.env.*
+!.env.example
+
+# Runtime log files (container writes its own)
+logs/
+
+# SQLite database files (use a named volume for durable persistence)
+*.db
+*.sqlite
+
+# Version control
+.git/
+.gitignore
+
+# CI/CD configuration (not needed at runtime)
+.github/
+
+# Build / distribution artifacts
+*.egg-info/
+dist/
+build/
+wheels/
+
+# Editor and OS artifacts
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Claude Code working files
+.claude/
