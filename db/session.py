@@ -103,19 +103,14 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Create all tables for SQLite dev mode; log a hint for Postgres.
+    """Create all tables on startup (SQLite and Postgres).
 
-    On PostgreSQL the schema is managed by Alembic migrations.  This function
-    only creates tables automatically for the SQLite fallback so local
-    development requires no migration step.
+    Uses ``metadata.create_all`` with ``checkfirst=True`` so it is safe to call
+    on every startup — existing tables are left untouched.  For production schema
+    migrations (column changes, renames) use Alembic separately.
     """
-    # Import Base here to avoid circular imports at module load time.
     from db.models import Base  # noqa: PLC0415
 
-    if _IS_SQLITE:
-        log.info("db: sqlite detected — running metadata.create_all")
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        log.info("db: tables ready")
-    else:
-        log.info("db: postgres detected — schema managed by Alembic")
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: Base.metadata.create_all(c, checkfirst=True))
+    log.info("db: tables ready")

@@ -9,10 +9,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Run Alembic migrations on every deploy before starting the server.
-# On SQLite (local/fallback) alembic upgrade is a no-op if tables exist.
-# On Railway Postgres it applies any pending migrations safely.
-startCommand = "alembic upgrade head && python -m api.app"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 90
 restartPolicyType = "ON_FAILURE"
