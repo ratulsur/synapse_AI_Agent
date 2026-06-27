@@ -240,43 +240,35 @@ def cmd_score(args: argparse.Namespace) -> int:
     for pick in open_picks:
         print(f"\n  run_id={pick.run_id[:8]}... as_of_date={pick.as_of_date} k={pick.k}")
 
-        # Score all 3 horizons
-        horizon_outcomes = {}
+        # Load already-written outcomes to avoid double-writing (append-only invariant)
+        existing = ledger.get_outcomes(pick.run_id)
+        existing_keys = {(o.run_id, o.symbol, o.horizon) for o in existing}
+
+        any_written = False
         for horizon in HORIZONS:
             outcomes = score_run(pick, horizon)
-            horizon_outcomes[horizon] = outcomes
-            print(f"    {horizon}: {len(outcomes)}/{pick.k} picks scored")
+            new_outcomes = [
+                o for o in outcomes
+                if (o.run_id, o.symbol, o.horizon) not in existing_keys
+            ]
+            print(f"    {horizon}: {len(outcomes)}/{pick.k} scored, {len(new_outcomes)} new")
 
-        # Only write if the position horizon (longest window) has outcomes for all picks.
-        # Partial scoring within a horizon is allowed; incomplete horizons are skipped.
-        position_outcomes = horizon_outcomes.get("position", [])
-        if not position_outcomes:
-            print(f"    -> Position window not yet closed. Skipping run {pick.run_id[:8]}...")
-            skipped_count += 1
-            continue
-
-        # Write outcomes and baselines for all available horizons
-        for horizon, outcomes in horizon_outcomes.items():
-            if not outcomes:
+            if not new_outcomes:
                 continue
-            # Skip horizons already written to maintain append-only invariant
-            existing = ledger.get_outcomes(pick.run_id)
-            existing_keys = {(o.run_id, o.symbol, o.horizon) for o in existing}
 
-            for outcome in outcomes:
-                key = (outcome.run_id, outcome.symbol, outcome.horizon)
-                if key not in existing_keys:
-                    try:
-                        ledger.write_outcome(outcome)
-                    except Exception as exc:
-                        log.warning("harness.cmd_score: write_outcome failed", error=str(exc))
+            # Write new outcomes for this horizon
+            for outcome in new_outcomes:
+                try:
+                    ledger.write_outcome(outcome)
+                    any_written = True
+                except Exception as exc:
+                    log.warning("harness.cmd_score: write_outcome failed", error=str(exc))
 
             # Baseline — compute once per (run, horizon); skip if already present
-            if ledger.get_baseline(pick.run_id, horizon) is None and outcomes:
+            if ledger.get_baseline(pick.run_id, horizon) is None:
                 try:
-                    # Derive entry/exit dates from the scored outcomes
-                    entry_date = outcomes[0].entry_time[:10]
-                    exit_date = outcomes[0].exit_time[:10]
+                    entry_date = new_outcomes[0].entry_time[:10]
+                    exit_date  = new_outcomes[0].exit_time[:10]
                     baseline = compute_random_baseline(
                         pick_record=pick,
                         horizon=horizon,
@@ -291,13 +283,17 @@ def cmd_score(args: argparse.Namespace) -> int:
                     )
                 except Exception as exc:
                     log.warning(
-                        "harness.cmd_score: compute_random_baseline failed",
+                        "harness.cmd_score: baseline failed",
                         run_id=pick.run_id,
                         horizon=horizon,
                         error=str(exc),
                     )
 
-        scored_count += 1
+        if any_written:
+            scored_count += 1
+        else:
+            print(f"    -> No new outcomes (windows still open or already scored).")
+            skipped_count += 1
 
     print(f"\n[stock_picker] Scored: {scored_count}, skipped (window open): {skipped_count}")
     return 0
