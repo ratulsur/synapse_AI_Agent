@@ -9,9 +9,11 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Railway injects $PORT at runtime; api/app.py reads os.environ["PORT"] first.
-# The Dockerfile CMD ("python -m api.app") is used as-is — no override needed.
+# Run Alembic migrations on every deploy before starting the server.
+# On SQLite (local/fallback) alembic upgrade is a no-op if tables exist.
+# On Railway Postgres it applies any pending migrations safely.
+startCommand = "alembic upgrade head && python -m api.app"
 healthcheckPath = "/healthz"
-healthcheckTimeout = 60
+healthcheckTimeout = 90
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
